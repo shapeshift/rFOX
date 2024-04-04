@@ -5,6 +5,10 @@ on: workflow_dispatch
 env:
   FOUNDRY_PROFILE: ci
 
+defaults:
+  run:
+    working-directory: foundry
+
 jobs:
   check:
     strategy:

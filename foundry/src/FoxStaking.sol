@@ -12,11 +12,11 @@ contract FOXStaking is IFOXStaking {
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
     uint256 public constant COOLDOWN_PERIOD = 28 days;
 
-    event Stake(address indexed account, uint256 amount, address runeAddress);
+    event Stake(address indexed account, uint256 amount, string runeAddress);
     event Unstake(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
     event ClaimRewards(address indexed user);
-    event UpdateRuneAddress(address indexed user, address newRuneAddress);
+    event UpdateRuneAddress(address indexed user, string newRuneAddress);
 
     constructor(address foxTokenAddress) {
       foxToken = IERC20(foxTokenAddress);
@@ -24,7 +24,7 @@ contract FOXStaking is IFOXStaking {
 
     // TODO(gomes): we may want the rune address to not be passed while staking but as an additional call 
     // to avoid having to pass it again every time when e.g staking more
-    function stake(uint256 amount, address runeAddress) external  {
+    function stake(uint256 amount, string runeAddress) external  {
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
         require(foxToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");

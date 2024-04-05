@@ -20,7 +20,7 @@ contract FOXStakingTest is Test {
     FOXStaking public foxStaking;
     MockFOXToken public foxToken;
 
-    address constant runeAddress = address(1); // Example rune address
+    string constant runeAddress = 'thorFooBarBaz';
 
     function setUp() public {
         foxToken = new MockFOXToken();

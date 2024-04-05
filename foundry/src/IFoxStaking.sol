@@ -8,7 +8,7 @@ interface IFOXStaking {
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     /// @param amount The amount of FOX tokens to be staked.
     /// @param runeAddress The ThorChain (RUNE) address where rewards will be sent.
-    function stake(uint256 amount, string runeAddress) external;
+    function stake(uint256 amount, string memory runeAddress) external;
 
     /// @notice Initiates the unstake process for a specified amount of FOX, starting the cooldown period (28 days).
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
@@ -27,7 +27,7 @@ interface IFOXStaking {
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     /// @param runeAddress The new RUNE address to be associated with the user's staked FOX position.
-    function setRuneAddress(string runeAddress) external;
+    function setRuneAddress(string memory runeAddress) external;
 
     /// @notice View the staked balance of FOX tokens for a given address.
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain

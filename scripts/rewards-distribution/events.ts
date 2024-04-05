@@ -16,6 +16,7 @@ type StakingAbiEvent<T extends StakingEventName> = {
       type: 'uint256',
       indexed: false
     }
+    // TOOD(gomes): if runeAddress is part of the staking fn, then it should be part of the Stake event too and should be reflected here
   ],
   name: T
 }

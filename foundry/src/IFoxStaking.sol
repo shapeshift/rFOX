@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 /// @title WIP high-level interface for FOX token staking contract
 /// @notice This interface outlines the functions for staking FOX tokens, managing RUNE addresses for rewards, and claiming 'em.
-interface IFOXStaking {
+interface IFoxStaking {
     /// @notice Allows a user to stake a specified amount of FOX tokens and assign a RUNE address for rewards - which can be changed later on.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     /// @param amount The amount of FOX tokens to be staked.

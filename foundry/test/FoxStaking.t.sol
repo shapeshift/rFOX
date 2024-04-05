@@ -2,7 +2,7 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
-import "../src/FOXStaking.sol";
+import "../src/FoxStaking.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockFOXToken is ERC20 {
@@ -17,14 +17,14 @@ contract MockFOXToken is ERC20 {
 }
 
 contract FOXStakingTest is Test {
-    FOXStaking public foxStaking;
+    FoxStaking public foxStaking;
     MockFOXToken public foxToken;
 
     string constant runeAddress = 'thorFooBarBaz';
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        foxStaking = new FOXStaking(address(foxToken));
+        foxStaking = new FoxStaking(address(foxToken));
     }
 
     function testStaking() public {
@@ -44,7 +44,7 @@ contract FOXStakingTest is Test {
             foxToken.makeItRain(users[i], amounts[i]);
             // https://book.getfoundry.sh/cheatcodes/start-prank
             vm.startPrank(users[i]);
-            // Approve FOXStaking contract to spend user's FOX tokens
+            // Approve FoxStaking contract to spend user's FOX tokens
             foxToken.approve(address(foxStaking), amounts[i]);
             // Stake tokens
             foxStaking.stake(amounts[i], runeAddress);

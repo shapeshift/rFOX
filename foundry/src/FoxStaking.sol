@@ -4,7 +4,7 @@ pragma solidity ^0.8.25;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IFoxStaking.sol";
 
-contract FOXStaking is IFOXStaking {
+contract FoxStaking is IFoxStaking {
     IERC20 public foxToken;
     mapping(address => uint256) private _stakingBalances;
     mapping(address => uint256) private cooldownInfo;

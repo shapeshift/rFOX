@@ -1,6 +1,7 @@
 import { Address } from 'viem'
 import { StakingLog, logs } from './events'
 import { assertUnreachable } from './helpers'
+import { simulateStaking } from './simulateStaking'
 
 const getStakingAmount = (log: StakingLog): bigint => {
   switch (log.eventName) {
@@ -30,7 +31,8 @@ const getEpochBlockRange = () => {
 }
 
 // TODO: this should only process 1 epoch at a time
-const main = () => {
+const main = async () => {
+  await simulateStaking()
   // index logs by block number
   const logsByBlockNumber = logs.reduce<Record<string, StakingLog[]>>((acc, log) => {
     if (!acc[log.blockNumber.toString()]) {

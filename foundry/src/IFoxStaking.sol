@@ -38,9 +38,8 @@ interface IFOXStaking {
     /// @notice Retrieve cooldown information for a given address.
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
     /// @param user The address to query cooldown info for.
-    /// @return amount The amount of FOX tokens currently cooling down.
     /// @return expiry The timestamp when the cooldown period ends and tokens can be withdrawn.
     function coolDownInfo(
         address user
-    ) external view returns (uint256 amount, uint256 expiry);
+    ) external view returns (uint256 expiry);
 }

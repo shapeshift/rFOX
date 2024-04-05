@@ -66,10 +66,8 @@ contract FOXStaking is IFOXStaking {
         return _stakingBalances[account];
     }
 
-    function coolDownInfo(address user) external view returns (uint256 amount, uint256 expiry) {
-        // Currently the assumption is this is a global cooldown, so we may not want this fn to take an amount?
-        amount = _stakingBalances[user]; 
+    function coolDownInfo(address user) external view returns (uint256 expiry) {
         expiry = cooldownInfo[user];
-        return (amount, expiry);
+        return expiry;
     }
 }

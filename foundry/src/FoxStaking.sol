@@ -13,7 +13,7 @@ contract FOXStaking is IFOXStaking {
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
     uint256 public constant COOLDOWN_PERIOD = 28 days;
 
-    event Stake(address indexed user, uint256 amount, address runeAddress);
+    event Stake(address indexed account, uint256 amount, address runeAddress);
     event Unstake(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
     event ClaimRewards(address indexed user);

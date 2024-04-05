@@ -1,7 +1,36 @@
-import { Address } from 'viem'
-import { StakingLog, logs } from './events'
+import { Address, createPublicClient, http, parseAbiItem } from 'viem'
+import { StakingLog  } from './events'
 import { assertUnreachable } from './helpers'
 import { simulateStaking } from './simulateStaking'
+import { localhost } from 'viem/chains'
+
+
+const ANVIL_JSON_RPC_URL = 'http://localhost:8545'
+const chain = {
+  ...localhost,
+  id: 31337
+} as const
+
+// Public viem client for anvil local chain - used during dev
+// TODO: Make this programmatic with an env var for actual testnet, and eventually mainnet
+const localClient = createPublicClient({
+  chain: chain,
+  transport: http(ANVIL_JSON_RPC_URL)
+});
+
+const getLogs = async ({fromBlock, toBlock}: {fromBlock: bigint, toBlock: bigint}) => {
+  const logs = await localClient.getLogs({  
+  // address: '0x'
+  events: [
+    parseAbiItem('event Stake(address indexed account, uint256 amount, string runeAddress)'),
+    parseAbiItem('event Unstake(address indexed user, uint256 amount)'),
+  ],
+  fromBlock,
+  toBlock
+})
+return logs as StakingLog[]
+}
+
 
 const getStakingAmount = (log: StakingLog): bigint => {
   switch (log.eventName) {
@@ -33,6 +62,8 @@ const getEpochBlockRange = () => {
 // TODO: this should only process 1 epoch at a time
 const main = async () => {
   await simulateStaking()
+  // While testing, and with the current simulation flow we only need logs from block 1 to 5 but this may change
+  const logs = await getLogs({fromBlock: 0n, toBlock: 5n})
   // index logs by block number
   const logsByBlockNumber = logs.reduce<Record<string, StakingLog[]>>((acc, log) => {
     if (!acc[log.blockNumber.toString()]) {

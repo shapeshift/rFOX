@@ -1,31 +1,15 @@
-import { Address, createPublicClient,  formatUnits,  parseUnits } from 'viem'
-import { Hex,  createWalletClient,  http } from 'viem'
-import { localhost  } from 'viem/chains'
+import { Address, formatUnits,  parseUnits } from 'viem'
+import { Hex } from 'viem'
 
-const ANVIL_JSON_RPC_URL = 'http://localhost:8545'
 
 import FoxStaking from "../../foundry/out/FoxStaking.sol/FOXStaking.json"
 import MockFOXToken from "../../foundry/out/FoxStaking.t.sol/MockFOXToken.json"
-// const foxStakingBytecode = "FOX_STAKING_BYTECODE_HERE";
-// const mockFOXTokenBytecode = "MOCK_FOX_TOKEN_BYTECODE_HERE";
-
-const chain = {
-  ...localhost,
-  id: 31337
-} as const
-
-const walletClient = createWalletClient({
-  chain: chain,
-  transport: http(ANVIL_JSON_RPC_URL)
-});
-
-const publicClient = createPublicClient({
-  chain: chain,
-  transport: http(ANVIL_JSON_RPC_URL)
-});
+import { localPublicClient, localWalletClient } from './constants'
 
 export const simulateStaking = async () => {
   
+    const walletClient = localWalletClient
+    const publicClient = localPublicClient
     // Deploy the MockFOXToken contract from Alice's wallet
     const [alice, bob] = await walletClient.getAddresses()
     const mockFoxtokenDeployHash = await walletClient.deployContract({

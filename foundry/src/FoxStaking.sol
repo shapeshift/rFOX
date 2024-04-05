@@ -5,8 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IFoxStaking.sol";
 
 contract FOXStaking is IFOXStaking {
-    address private constant FOX_TOKEN_ADDRESS = 0xc770EEfAd204B5180dF6a14Ee197D99d808ee52d;
-    IERC20 public foxToken = IERC20(FOX_TOKEN_ADDRESS);
+    IERC20 public foxToken;
     mapping(address => uint256) private _stakingBalances;
     mapping(address => uint256) private cooldownInfo;
     mapping(address => address) private runePairingAddress;
@@ -20,7 +19,7 @@ contract FOXStaking is IFOXStaking {
     event UpdateRuneAddress(address indexed user, address newRuneAddress);
 
     constructor(address foxTokenAddress) {
-      // Empty constructor - we don't need to initialize anything here though we may want some guards against re-entrency, or maybe not needed here?
+      foxToken = IERC20(foxTokenAddress);
     }
 
     // TODO(gomes): we may want the rune address to not be passed while staking but as an additional call 

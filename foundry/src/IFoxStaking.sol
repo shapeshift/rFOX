@@ -29,11 +29,6 @@ interface IFOXStaking {
     /// @param runeAddress The new RUNE address to be associated with the user's staked FOX position.
     function setRuneAddress(address runeAddress) external;
 
-    /// @notice Update the ThorChain (RUNE) address for a user's staking rewards to a new address.
-    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    /// @param newRuneAddress The new ThorChain (RUNE) address.
-    function updateRuneAddress(address newRuneAddress) external;
-
     /// @notice View the staked balance of FOX tokens for a given address.
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
     /// @param account The address we're getting the staked FOX balance for.

@@ -42,8 +42,9 @@ const getEpochBlockReward = (_epochEndBlockNumber: bigint) => {
 
 // get the block range for the current epoch
 const getEpochBlockRange = () => {
+  // Monkey-patched to 0 and 5 for testing for now since the current simulation only goes up to block 5
   const previousEpochEndBlockNumber = 0n
-  const currentBlockNumber = 100n
+  const currentBlockNumber = 5n
   return { fromBlockNumber: previousEpochEndBlockNumber, toBlockNumber: currentBlockNumber }
 }
 

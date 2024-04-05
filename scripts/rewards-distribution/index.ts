@@ -1,25 +1,13 @@
-import { Address, createPublicClient, http, parseAbiItem } from 'viem'
+import { Address,  parseAbiItem } from 'viem'
 import { StakingLog  } from './events'
 import { assertUnreachable } from './helpers'
 import { simulateStaking } from './simulateStaking'
-import { localhost } from 'viem/chains'
+import { localPublicClient  } from './constants'
 
 
-const ANVIL_JSON_RPC_URL = 'http://localhost:8545'
-const chain = {
-  ...localhost,
-  id: 31337
-} as const
-
-// Public viem client for anvil local chain - used during dev
-// TODO: Make this programmatic with an env var for actual testnet, and eventually mainnet
-const localClient = createPublicClient({
-  chain: chain,
-  transport: http(ANVIL_JSON_RPC_URL)
-});
 
 const getLogs = async ({fromBlock, toBlock}: {fromBlock: bigint, toBlock: bigint}) => {
-  const logs = await localClient.getLogs({  
+  const logs = await localPublicClient.getLogs({  
   // address: '0x'
   events: [
     parseAbiItem('event Stake(address indexed account, uint256 amount, string runeAddress)'),
@@ -75,7 +63,7 @@ const main = async () => {
 
   // TODO: these will be initialized from the last epoch's state
   let totalStaked = 0n
-  const balanceByAccount: Record<Address, bigint> = {}
+  const balanceByAccountBaseUnit: Record<Address, bigint> = {}
 
   // this must be initialized to empty
   const epochRewardByAccount: Record<Address, number> = {}
@@ -92,24 +80,24 @@ const main = async () => {
     if (incomingLogs !== undefined) {
       for (const log of incomingLogs) {
         const account = log.args.account
-        if (!balanceByAccount[account]) {
-          balanceByAccount[account] = 0n
+        if (!balanceByAccountBaseUnit[account]) {
+          balanceByAccountBaseUnit[account] = 0n
         }
-        const stakingAmount = getStakingAmount(log)
-        balanceByAccount[account] += stakingAmount
-        totalStaked += stakingAmount
+        const stakingAmountBaseUnit = getStakingAmount(log)
+        balanceByAccountBaseUnit[account] += stakingAmountBaseUnit
+        totalStaked += stakingAmountBaseUnit
 
         // clear empty balances
-        if (balanceByAccount[account] === 0n) {
-          delete balanceByAccount[account]
+        if (balanceByAccountBaseUnit[account] === 0n) {
+          delete balanceByAccountBaseUnit[account]
         }
       }
     }
 
-    for (const account of Object.keys(balanceByAccount) as Address[]) {
+    for (const account of Object.keys(balanceByAccountBaseUnit) as Address[]) {
       // calculate rewards for the current block
       // TODO: Bignumber math should be used here to allow for more precision with floating point numbers
-      const proportionOfTotalStaked = totalStaked > 0n ? Number(balanceByAccount[account]) / Number(totalStaked) : 0
+      const proportionOfTotalStaked = totalStaked > 0n ? Number(balanceByAccountBaseUnit[account]) / Number(totalStaked) : 0
       const reward = Number(epochBlockReward) * proportionOfTotalStaked
 
       if (epochRewardByAccount[account] == undefined) {

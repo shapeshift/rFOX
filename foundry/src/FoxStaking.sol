@@ -40,6 +40,7 @@ contract FoxStaking is IFoxStaking {
     }
 
     function requestWithdraw(uint256 amount) external {
+        require(amount > 0, "Cannot withdraw 0");
         require(
             amount <= _stakingBalances[msg.sender],
             "Withdraw amount exceeds staked balance"
@@ -56,6 +57,10 @@ contract FoxStaking is IFoxStaking {
             "Not cooled down yet"
         );
         require(amount > 0, "Cannot withdraw 0");
+        require(
+            amount <= _stakingBalances[msg.sender],
+            "Withdraw amount exceeds staked balance"
+        );
         require(foxToken.transfer(msg.sender, amount), "Transfer failed");
         emit Withdraw(msg.sender, amount);
     }

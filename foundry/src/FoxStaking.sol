@@ -30,7 +30,6 @@ contract FoxStaking is IFoxStaking {
             "Transfer failed"
         );
 
-        // Note - we do the thing *after* ensuring the require above didn't revert, or this could be very dangerous
         stakingBalances[msg.sender] += amount;
 
         emit Stake(msg.sender, amount);

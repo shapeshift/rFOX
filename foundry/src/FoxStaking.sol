@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.25;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IFoxStaking.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IFoxStaking} from "./IFoxStaking.sol";
 
 contract FoxStaking is IFoxStaking {
     IERC20 public foxToken;
@@ -22,7 +22,10 @@ contract FoxStaking is IFoxStaking {
     }
 
     function stake(uint256 amount) external {
-        require(runePairingAddresses[msg.sender] != "", "Rune address not set");
+        require(
+            bytes(runePairingAddresses[msg.sender]).length > 0,
+            "Rune address not set"
+        );
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
         require(

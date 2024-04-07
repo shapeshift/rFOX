@@ -3,10 +3,12 @@ pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IFoxStaking} from "./IFoxStaking.sol";
+import {console} from "forge-std/Script.sol";
 
 contract FoxStaking is IFoxStaking {
     IERC20 public foxToken;
     mapping(address => uint256) private stakingBalances;
+    mapping(address => uint256) private unstakingBalances;
     mapping(address => uint256) private cooldownInfo;
     mapping(address => string) private runePairingAddresses;
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
@@ -44,8 +46,20 @@ contract FoxStaking is IFoxStaking {
             amount <= stakingBalances[msg.sender],
             "Withdraw amount exceeds staked balance"
         );
+
+        // Reset a previous withdrawal request if it exists
+        if (unstakingBalances[msg.sender] > 0) {
+            stakingBalances[msg.sender] += unstakingBalances[msg.sender];
+            unstakingBalances[msg.sender] = 0;
+        }
+
+        // Set staking / unstaking amounts
         stakingBalances[msg.sender] -= amount;
+        unstakingBalances[msg.sender] += amount;
+
+        // Set new cooldown period
         cooldownInfo[msg.sender] = block.timestamp + COOLDOWN_PERIOD;
+
         emit Unstake(msg.sender, amount);
     }
 
@@ -57,10 +71,11 @@ contract FoxStaking is IFoxStaking {
         );
         require(amount > 0, "Cannot withdraw 0");
         require(
-            amount <= stakingBalances[msg.sender],
+            amount <= unstakingBalances[msg.sender],
             "Withdraw amount exceeds staked balance"
         );
         require(foxToken.transfer(msg.sender, amount), "Transfer failed");
+        unstakingBalances[msg.sender] -= amount;
         emit Withdraw(msg.sender, amount);
     }
 
@@ -70,7 +85,7 @@ contract FoxStaking is IFoxStaking {
     }
 
     function balanceOf(address account) external view returns (uint256) {
-        return stakingBalances[account];
+        return stakingBalances[account] + unstakingBalances[account];
     }
 
     function coolDownInfo(

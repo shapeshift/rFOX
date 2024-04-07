@@ -12,7 +12,7 @@ contract FoxStaking is IFoxStaking {
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
     uint256 public constant COOLDOWN_PERIOD = 28 days;
 
-    event Stake(address indexed account, uint256 amount, string runeAddress);
+    event Stake(address indexed account, uint256 amount);
     event Unstake(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
     event UpdateRuneAddress(address indexed user, string newRuneAddress);
@@ -21,9 +21,8 @@ contract FoxStaking is IFoxStaking {
         foxToken = IERC20(foxTokenAddress);
     }
 
-    // TODO(gomes): we may want the rune address to not be passed while staking but as an additional call
-    // to avoid having to pass it again every time when e.g staking more
-    function stake(uint256 amount, string memory runeAddress) external {
+    function stake(uint256 amount) external {
+        require(runePairingAddresses[msg.sender] != "", "Rune address not set");
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
         require(
@@ -33,9 +32,8 @@ contract FoxStaking is IFoxStaking {
 
         // Note - we do the thing *after* ensuring the require above didn't revert, or this could be very dangerous
         _stakingBalances[msg.sender] += amount;
-        runePairingAddresses[msg.sender] = runeAddress;
 
-        emit Stake(msg.sender, amount, runeAddress);
+        emit Stake(msg.sender, amount);
     }
 
     function requestWithdraw(uint256 amount) external {
@@ -66,7 +64,7 @@ contract FoxStaking is IFoxStaking {
 
     function setRuneAddress(string memory runeAddress) external {
         runePairingAddresses[msg.sender] = runeAddress;
-        emit UpdateRuneAddress(msg.sender, runeAddress);
+        emit SetRuneAddress(msg.sender, runeAddress);
     }
 
     function balanceOf(address account) external view returns (uint256) {

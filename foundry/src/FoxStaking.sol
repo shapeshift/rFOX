@@ -6,7 +6,7 @@ import "./IFoxStaking.sol";
 
 contract FoxStaking is IFoxStaking {
     IERC20 public foxToken;
-    mapping(address => uint256) private _stakingBalances;
+    mapping(address => uint256) private stakingBalances;
     mapping(address => uint256) private cooldownInfo;
     mapping(address => string) private runePairingAddresses;
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
@@ -31,7 +31,7 @@ contract FoxStaking is IFoxStaking {
         );
 
         // Note - we do the thing *after* ensuring the require above didn't revert, or this could be very dangerous
-        _stakingBalances[msg.sender] += amount;
+        stakingBalances[msg.sender] += amount;
 
         emit Stake(msg.sender, amount);
     }
@@ -39,10 +39,10 @@ contract FoxStaking is IFoxStaking {
     function requestWithdraw(uint256 amount) external {
         require(amount > 0, "Cannot withdraw 0");
         require(
-            amount <= _stakingBalances[msg.sender],
+            amount <= stakingBalances[msg.sender],
             "Withdraw amount exceeds staked balance"
         );
-        _stakingBalances[msg.sender] -= amount;
+        stakingBalances[msg.sender] -= amount;
         cooldownInfo[msg.sender] = block.timestamp + COOLDOWN_PERIOD;
         emit Unstake(msg.sender, amount);
     }
@@ -55,7 +55,7 @@ contract FoxStaking is IFoxStaking {
         );
         require(amount > 0, "Cannot withdraw 0");
         require(
-            amount <= _stakingBalances[msg.sender],
+            amount <= stakingBalances[msg.sender],
             "Withdraw amount exceeds staked balance"
         );
         require(foxToken.transfer(msg.sender, amount), "Transfer failed");
@@ -68,7 +68,7 @@ contract FoxStaking is IFoxStaking {
     }
 
     function balanceOf(address account) external view returns (uint256) {
-        return _stakingBalances[account];
+        return stakingBalances[account];
     }
 
     function coolDownInfo(address user) external view returns (uint256 expiry) {

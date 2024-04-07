@@ -20,10 +20,6 @@ interface IFoxStaking {
     /// @param amount The amount of FOX tokens to withdraw.
     function withdraw(uint256 amount) external;
 
-    /// @notice Allows a user to claim their accumulated rewards.
-    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    function claimRewards() external;
-
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     /// @param runeAddress The new RUNE address to be associated with the user's staked FOX position.

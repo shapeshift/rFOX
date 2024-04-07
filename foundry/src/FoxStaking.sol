@@ -15,7 +15,6 @@ contract FoxStaking is IFoxStaking {
     event Stake(address indexed account, uint256 amount, string runeAddress);
     event Unstake(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
-    event ClaimRewards(address indexed user);
     event UpdateRuneAddress(address indexed user, string newRuneAddress);
 
     constructor(address foxTokenAddress) {
@@ -63,11 +62,6 @@ contract FoxStaking is IFoxStaking {
         );
         require(foxToken.transfer(msg.sender, amount), "Transfer failed");
         emit Withdraw(msg.sender, amount);
-    }
-
-    function claimRewards() external {
-        // This doesn't do anything - only emits an event to be listened to by the script once done
-        emit ClaimRewards(msg.sender);
     }
 
     function setRuneAddress(string memory runeAddress) external {

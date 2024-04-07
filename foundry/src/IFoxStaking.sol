@@ -32,7 +32,9 @@ interface IFoxStaking {
 
     /// @notice Retrieve cooldown information for a given address.
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
-    /// @param user The address to query cooldown info for.
+    /// @param account The address to query cooldown info for.
     /// @return expiry The timestamp when the cooldown period ends and tokens can be withdrawn.
-    function coolDownInfo(address user) external view returns (uint256 expiry);
+    function coolDownInfo(
+        address account
+    ) external view returns (uint256 expiry);
 }

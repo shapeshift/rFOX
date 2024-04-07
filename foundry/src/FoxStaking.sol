@@ -13,9 +13,9 @@ contract FoxStaking is IFoxStaking {
     uint256 public constant COOLDOWN_PERIOD = 28 days;
 
     event Stake(address indexed account, uint256 amount);
-    event Unstake(address indexed user, uint256 amount);
-    event Withdraw(address indexed user, uint256 amount);
-    event UpdateRuneAddress(address indexed user, string newRuneAddress);
+    event Unstake(address indexed account, uint256 amount);
+    event Withdraw(address indexed account, uint256 amount);
+    event SetRuneAddress(address indexed account, string newRuneAddress);
 
     constructor(address foxTokenAddress) {
         foxToken = IERC20(foxTokenAddress);
@@ -73,8 +73,10 @@ contract FoxStaking is IFoxStaking {
         return stakingBalances[account];
     }
 
-    function coolDownInfo(address user) external view returns (uint256 expiry) {
-        expiry = cooldownInfo[user];
+    function coolDownInfo(
+        address account
+    ) external view returns (uint256 expiry) {
+        expiry = cooldownInfo[account];
         return expiry;
     }
 }

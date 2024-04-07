@@ -46,8 +46,10 @@ contract FOXStakingTest is Test {
             vm.startPrank(users[i]);
             // Approve FoxStaking contract to spend user's FOX tokens
             foxToken.approve(address(foxStaking), amounts[i]);
+            // Set rune address
+            foxStaking.setRuneAddress(runeAddress);
             // Stake tokens
-            foxStaking.stake(amounts[i], runeAddress);
+            foxStaking.stake(amounts[i]);
             vm.stopPrank();
 
             // Verify each user's staked amount

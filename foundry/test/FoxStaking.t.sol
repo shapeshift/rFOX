@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract MockFOXToken is ERC20 {
     constructor() ERC20("Mock FOX Token", "FOX") {
         // 1M FOX for testing, only in local chain can't use this as voting power soz
-        _mint(address(this), 1e24); 
+        _mint(address(this), 1e24);
     }
 
     function makeItRain(address to, uint256 amount) public {
@@ -20,7 +20,7 @@ contract FOXStakingTest is Test {
     FoxStaking public foxStaking;
     MockFOXToken public foxToken;
 
-    string constant runeAddress = 'thorFooBarBaz';
+    string constant runeAddress = "thorFooBarBaz";
 
     function setUp() public {
         foxToken = new MockFOXToken();
@@ -39,7 +39,7 @@ contract FOXStakingTest is Test {
         amounts[2] = 300e18; // 300 FOX
 
         // Simulate each user staking FOX tokens
-        for(uint256 i = 0; i < users.length; i++) {
+        for (uint256 i = 0; i < users.length; i++) {
             // Free FOX tokens for each user
             foxToken.makeItRain(users[i], amounts[i]);
             // https://book.getfoundry.sh/cheatcodes/start-prank

@@ -19,15 +19,18 @@ contract FoxStaking is IFoxStaking {
     event UpdateRuneAddress(address indexed user, string newRuneAddress);
 
     constructor(address foxTokenAddress) {
-      foxToken = IERC20(foxTokenAddress);
+        foxToken = IERC20(foxTokenAddress);
     }
 
-    // TODO(gomes): we may want the rune address to not be passed while staking but as an additional call 
+    // TODO(gomes): we may want the rune address to not be passed while staking but as an additional call
     // to avoid having to pass it again every time when e.g staking more
-    function stake(uint256 amount, string memory runeAddress) external  {
+    function stake(uint256 amount, string memory runeAddress) external {
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
-        require(foxToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        require(
+            foxToken.transferFrom(msg.sender, address(this), amount),
+            "Transfer failed"
+        );
 
         // Note - we do the thing *after* ensuring the require above didn't revert, or this could be very dangerous
         _stakingBalances[msg.sender] += amount;
@@ -36,27 +39,33 @@ contract FoxStaking is IFoxStaking {
         emit Stake(msg.sender, amount, runeAddress);
     }
 
-    function requestWithdraw(uint256 amount) external  {
-        require(amount <= _stakingBalances[msg.sender], "Withdraw amount exceeds staked balance");
+    function requestWithdraw(uint256 amount) external {
+        require(
+            amount <= _stakingBalances[msg.sender],
+            "Withdraw amount exceeds staked balance"
+        );
         _stakingBalances[msg.sender] -= amount;
         cooldownInfo[msg.sender] = block.timestamp + COOLDOWN_PERIOD;
         emit Unstake(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) external  {
+    function withdraw(uint256 amount) external {
         // Note this doesn't do partial cooldowns for a given amount - currently we assume a global cooldown per address
-        require(block.timestamp >= cooldownInfo[msg.sender], "Not cooled down yet");
+        require(
+            block.timestamp >= cooldownInfo[msg.sender],
+            "Not cooled down yet"
+        );
         require(amount > 0, "Cannot withdraw 0");
         require(foxToken.transfer(msg.sender, amount), "Transfer failed");
         emit Withdraw(msg.sender, amount);
     }
 
-    function claimRewards() external  {
+    function claimRewards() external {
         // This doesn't do anything - only emits an event to be listened to by the script once done
         emit ClaimRewards(msg.sender);
     }
 
-    function setRuneAddress(string memory runeAddress) external  {
+    function setRuneAddress(string memory runeAddress) external {
         runePairingAddresses[msg.sender] = runeAddress;
         emit UpdateRuneAddress(msg.sender, runeAddress);
     }

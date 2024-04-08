@@ -27,8 +27,12 @@ interface IFoxStaking {
     /// @notice View the staked balance of FOX tokens for a given address.
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
     /// @param account The address we're getting the staked FOX balance for.
-    /// @return The amount of staked FOX tokens.
-    function balanceOf(address account) external view returns (uint256);
+    /// @return total The total amount of FOX tokens held.
+    /// @return staking The amount of staked FOX tokens.
+    /// @return unstaking The amount of FOX tokens cooling down for withdrawal.
+    function balanceOf(
+        address account
+    ) external view returns (uint256 total, uint256 staking, uint256 unstaking);
 
     /// @notice Retrieve cooldown information for a given address.
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain

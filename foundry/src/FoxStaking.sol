@@ -43,9 +43,13 @@ contract FoxStaking is IFoxStaking {
     function requestWithdraw(uint256 amount) external {
         require(amount > 0, "Cannot withdraw 0");
         require(
-            amount <= stakingBalances[msg.sender],
+            amount <=
+                stakingBalances[msg.sender] + unstakingBalances[msg.sender],
             "Withdraw amount exceeds staked balance"
         );
+        // Check if the user has already requested a withdrawal for the same amount or more
+        // Prevents a user from waiting longer than necessary to withdraw
+        require(amount > unstakingBalances[msg.sender], "Redundant request");
 
         // Reset a previous withdrawal request if it exists
         if (unstakingBalances[msg.sender] > 0) {
@@ -55,7 +59,7 @@ contract FoxStaking is IFoxStaking {
 
         // Set staking / unstaking amounts
         stakingBalances[msg.sender] -= amount;
-        unstakingBalances[msg.sender] += amount;
+        unstakingBalances[msg.sender] = amount;
 
         // Set new cooldown period
         cooldownInfo[msg.sender] = block.timestamp + COOLDOWN_PERIOD;
@@ -84,8 +88,17 @@ contract FoxStaking is IFoxStaking {
         emit SetRuneAddress(msg.sender, runeAddress);
     }
 
-    function balanceOf(address account) external view returns (uint256) {
-        return stakingBalances[account] + unstakingBalances[account];
+    function balanceOf(
+        address account
+    )
+        external
+        view
+        returns (uint256 total, uint256 staking, uint256 unstaking)
+    {
+        unstaking = unstakingBalances[account];
+        staking = stakingBalances[account];
+        total = unstaking + staking;
+        return (total, staking, unstaking);
     }
 
     function coolDownInfo(

@@ -24,10 +24,6 @@ contract FoxStaking is IFoxStaking {
     }
 
     function stake(uint256 amount) external {
-        require(
-            bytes(runePairingAddresses[msg.sender]).length > 0,
-            "Rune address not set"
-        );
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
         require(

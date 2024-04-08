@@ -525,7 +525,7 @@ contract FOXStakingTestWithdraw is Test {
         vm.warp(block.timestamp + 28 days);
 
         // Try to withdraw more than balance
-        vm.expectRevert("Withdraw amount exceeds staked balance");
+        vm.expectRevert("Withdraw amount exceeds unstaking balance");
         foxStaking.withdraw(amount + 1);
 
         // Check user wallet balance of FOX is still 0
@@ -565,7 +565,7 @@ contract FOXStakingTestWithdraw is Test {
         assertEq(foxToken.balanceOf(user), 1000);
 
         // Try to withdraw 1 wei more than balance
-        vm.expectRevert("Withdraw amount exceeds staked balance");
+        vm.expectRevert("Withdraw amount exceeds unstaking balance");
         foxStaking.withdraw(1);
 
         // Check user did not receive more FOX

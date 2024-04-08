@@ -76,7 +76,7 @@ contract FoxStaking is IFoxStaking {
         require(amount > 0, "Cannot withdraw 0");
         require(
             amount <= unstakingBalances[msg.sender],
-            "Withdraw amount exceeds staked balance"
+            "Withdraw amount exceeds unstaking balance"
         );
         require(foxToken.transfer(msg.sender, amount), "Transfer failed");
         unstakingBalances[msg.sender] -= amount;

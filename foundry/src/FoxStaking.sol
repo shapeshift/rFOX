@@ -38,26 +38,18 @@ contract FoxStaking is IFoxStaking {
 
     function requestWithdraw(uint256 amount) external {
         require(amount > 0, "Cannot withdraw 0");
+
+        // User can only request withdraw for their staking balance, not more, and not their unstaking balance
         require(
-            amount <=
-                stakingBalances[msg.sender] + unstakingBalances[msg.sender],
+            amount <= stakingBalances[msg.sender],
             "Withdraw amount exceeds staked balance"
         );
-        // Check if the user has already requested a withdrawal for the same amount or more
-        // Prevents a user from waiting longer than necessary to withdraw
-        require(amount > unstakingBalances[msg.sender], "Redundant request");
-
-        // Reset a previous withdrawal request if it exists
-        if (unstakingBalances[msg.sender] > 0) {
-            stakingBalances[msg.sender] += unstakingBalances[msg.sender];
-            unstakingBalances[msg.sender] = 0;
-        }
 
         // Set staking / unstaking amounts
         stakingBalances[msg.sender] -= amount;
-        unstakingBalances[msg.sender] = amount;
+        unstakingBalances[msg.sender] += amount;
 
-        // Set new cooldown period
+        // Set or update the cooldown period
         cooldownInfo[msg.sender] = block.timestamp + COOLDOWN_PERIOD;
 
         emit Unstake(msg.sender, amount);

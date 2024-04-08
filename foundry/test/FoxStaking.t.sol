@@ -53,7 +53,7 @@ contract FOXStakingTestStaking is Test {
             vm.stopPrank();
 
             // Verify each user's staked amount
-            (uint256 total, , ) = foxStaking.balanceOf(users[i]);
+            (uint256 total) = foxStaking.balanceOf(users[i]);
             assertEq(total, amounts[i]);
         }
     }
@@ -89,25 +89,21 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (
-            uint256 total_before,
-            uint256 staking_before,
-            uint256 unstaking_before
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_before, 1000);
-        vm.assertEq(staking_before, 1000);
-        vm.assertEq(unstaking_before, 0);
+        StakingInfo memory info_before = foxStaking.stakingInfo(user);
+        vm.assertEq(info_before.stakingBalance, 1000);
+        vm.assertEq(info_before.unstakingBalance, 0);
+        vm.assertEq(info_before.stakingBalance + info_before.unstakingBalance, 1000);
 
         // Try to request withdraw 0
         vm.expectRevert("Cannot withdraw 0");
         foxStaking.requestWithdraw(0);
 
         // Check user staking balances are unchanged
-        (uint256 total, uint256 staking, uint256 unstaking) = foxStaking
-            .balanceOf(user);
-        vm.assertEq(total, 1000);
-        vm.assertEq(staking, 1000);
-        vm.assertEq(unstaking, 0);
+        StakingInfo memory info_after = foxStaking.stakingInfo(user);
+
+        vm.assertEq(info_after.stakingBalance + info_after.unstakingBalance, 1000);
+        vm.assertEq(info_after.stakingBalance, 1000);
+        vm.assertEq(info_after.unstakingBalance, 0);
 
         vm.stopPrank();
     }
@@ -116,25 +112,20 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (
-            uint256 total_before,
-            uint256 staking_before,
-            uint256 unstaking_before
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_before, 1000);
-        vm.assertEq(staking_before, 1000);
-        vm.assertEq(unstaking_before, 0);
-
+        StakingInfo memory info_before = foxStaking.stakingInfo(user);
+        vm.assertEq(info_before.stakingBalance + info_before.unstakingBalance, 1000);
+        vm.assertEq(info_before.stakingBalance, 1000);
+        vm.assertEq(info_before.unstakingBalance, 0);
+        
         // Try to request more than balance
         vm.expectRevert("Withdraw amount exceeds staked balance");
         foxStaking.requestWithdraw(amount + 1);
 
         // Check user staking balances are unchanged
-        (uint256 total, uint256 staking, uint256 unstaking) = foxStaking
-            .balanceOf(user);
-        vm.assertEq(total, 1000);
-        vm.assertEq(staking, 1000);
-        vm.assertEq(unstaking, 0);
+        StakingInfo memory info_after = foxStaking.stakingInfo(user);
+        vm.assertEq(info_after.stakingBalance + info_after.unstakingBalance, 1000);
+        vm.assertEq(info_after.stakingBalance, 1000);
+        vm.assertEq(info_after.unstakingBalance, 0);
 
         vm.stopPrank();
     }
@@ -143,24 +134,19 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (
-            uint256 total_before,
-            uint256 staking_before,
-            uint256 unstaking_before
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_before, 1000);
-        vm.assertEq(staking_before, 1000);
-        vm.assertEq(unstaking_before, 0);
+        StakingInfo memory info_before = foxStaking.stakingInfo(user);
+        vm.assertEq(info_before.stakingBalance + info_before.unstakingBalance, 1000);
+        vm.assertEq(info_before.stakingBalance, 1000);
+        vm.assertEq(info_before.unstakingBalance, 0);
 
         // Try to request exact balance
         foxStaking.requestWithdraw(amount);
 
         // Check user staking balances reflect the withdrawal request
-        (uint256 total, uint256 staking, uint256 unstaking) = foxStaking
-            .balanceOf(user);
-        vm.assertEq(total, 1000);
-        vm.assertEq(staking, 0);
-        vm.assertEq(unstaking, 1000);
+        StakingInfo memory info_after = foxStaking.stakingInfo(user);
+        vm.assertEq(info_after.stakingBalance + info_after.unstakingBalance, 1000);
+        vm.assertEq(info_after.stakingBalance, 0);
+        vm.assertEq(info_after.unstakingBalance, 1000);
 
         vm.stopPrank();
     }
@@ -169,24 +155,19 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (
-            uint256 total_before,
-            uint256 staking_before,
-            uint256 unstaking_before
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_before, 1000);
-        vm.assertEq(staking_before, 1000);
-        vm.assertEq(unstaking_before, 0);
+        StakingInfo memory info_before = foxStaking.stakingInfo(user);
+        vm.assertEq(info_before.stakingBalance + info_before.unstakingBalance, 1000);
+        vm.assertEq(info_before.stakingBalance, 1000);
+        vm.assertEq(info_before.unstakingBalance, 0);
 
         // Try to request exact balance
         foxStaking.requestWithdraw(800);
 
         // Check user staking balances reflect the withdrawal request
-        (uint256 total, uint256 staking, uint256 unstaking) = foxStaking
-            .balanceOf(user);
-        vm.assertEq(total, 1000);
-        vm.assertEq(staking, 200);
-        vm.assertEq(unstaking, 800);
+        StakingInfo memory info_after = foxStaking.stakingInfo(user);
+        vm.assertEq(info_after.stakingBalance + info_after.unstakingBalance, 1000);
+        vm.assertEq(info_after.stakingBalance, 200);
+        vm.assertEq(info_after.unstakingBalance, 800);
 
         vm.stopPrank();
     }
@@ -196,14 +177,10 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (
-            uint256 total_before,
-            uint256 staking_before,
-            uint256 unstaking_before
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_before, 1000);
-        vm.assertEq(staking_before, 1000);
-        vm.assertEq(unstaking_before, 0);
+        StakingInfo memory info_before = foxStaking.stakingInfo(user);
+        vm.assertEq(info_before.stakingBalance + info_before.unstakingBalance, 1000);
+        vm.assertEq(info_before.stakingBalance, 1000);
+        vm.assertEq(info_before.unstakingBalance, 0);
 
         // Request withdraw of 300 FOX
         foxStaking.requestWithdraw(300);
@@ -213,17 +190,14 @@ contract FOXStakingTestRequestWithdraw is Test {
         foxStaking.withdraw(300);
 
         // Check cooldown period is set
-        vm.assertEq(foxStaking.coolDownInfo(user), block.timestamp + 28 days);
+        StakingInfo memory info = foxStaking.stakingInfo(user);
+        vm.assertEq(info.cooldownExpiry, block.timestamp + 28 days);
 
         // Check user staking balances reflect the withdrawal request
-        (
-            uint256 total_first,
-            uint256 staking_first,
-            uint256 unstaking_first
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_first, 1000);
-        vm.assertEq(staking_first, 700);
-        vm.assertEq(unstaking_first, 300);
+        StakingInfo memory info_first = foxStaking.stakingInfo(user);
+        vm.assertEq(info_first.stakingBalance + info_first.unstakingBalance, 1000);
+        vm.assertEq(info_first.stakingBalance, 700);
+        vm.assertEq(info_first.unstakingBalance, 300);
 
         // Time warp 28 days
         vm.warp(block.timestamp + 28 days);
@@ -232,30 +206,23 @@ contract FOXStakingTestRequestWithdraw is Test {
         foxStaking.withdraw(300);
 
         // Check user staking balances reflect the withdrawal
-        (
-            uint256 total_second,
-            uint256 staking_second,
-            uint256 unstaking_second
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_second, 700);
-        vm.assertEq(staking_second, 700);
-        vm.assertEq(unstaking_second, 0);
+        StakingInfo memory info_second = foxStaking.stakingInfo(user);
+        vm.assertEq(info_second.stakingBalance + info_second.unstakingBalance, 700);
+        vm.assertEq(info_second.stakingBalance, 700);
+        vm.assertEq(info_second.unstakingBalance, 0);
 
         // Request withdraw of the remaining 700 FOX
         foxStaking.requestWithdraw(700);
 
         // Check cooldown period is set
-        vm.assertGt(foxStaking.coolDownInfo(user), block.timestamp);
+        StakingInfo memory info_two = foxStaking.stakingInfo(user);
+        vm.assertGt(info_two.cooldownExpiry, block.timestamp);
 
         // Check user staking balances reflect the withdrawal request
-        (
-            uint256 total_third,
-            uint256 staking_third,
-            uint256 unstaking_third
-        ) = foxStaking.balanceOf(user);
-        vm.assertEq(total_third, 700);
-        vm.assertEq(staking_third, 0);
-        vm.assertEq(unstaking_third, 700);
+        StakingInfo memory info_third = foxStaking.stakingInfo(user);
+        vm.assertEq(info_third.stakingBalance + info_third.unstakingBalance, 700);
+        vm.assertEq(info_third.stakingBalance, 0);
+        vm.assertEq(info_third.unstakingBalance, 700);
 
         vm.stopPrank();
     }

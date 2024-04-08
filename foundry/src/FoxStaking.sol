@@ -2,7 +2,7 @@
 pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IFoxStaking} from "./IFoxStaking.sol";
+import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 import {console} from "forge-std/Script.sol";
 
 contract FoxStaking is IFoxStaking {
@@ -76,23 +76,18 @@ contract FoxStaking is IFoxStaking {
         emit SetRuneAddress(msg.sender, runeAddress);
     }
 
-    function balanceOf(
-        address account
-    )
-        external
-        view
-        returns (uint256 total, uint256 staking, uint256 unstaking)
-    {
-        unstaking = unstakingBalances[account];
-        staking = stakingBalances[account];
+    function balanceOf(address account) external view returns (uint256 total) {
+        uint256 unstaking = unstakingBalances[account];
+        uint256 staking = stakingBalances[account];
         total = unstaking + staking;
-        return (total, staking, unstaking);
+        return total;
     }
 
-    function coolDownInfo(
-        address account
-    ) external view returns (uint256 expiry) {
-        expiry = cooldownInfo[account];
-        return expiry;
+    function stakingInfo(address account) external view returns (StakingInfo memory) {
+      return StakingInfo({
+        stakingBalance: stakingBalances[account],
+        unstakingBalance: unstakingBalances[account],
+        cooldownExpiry: cooldownInfo[account] 
+      });
     }
 }

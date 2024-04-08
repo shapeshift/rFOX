@@ -372,6 +372,10 @@ contract FOXStakingTestRequestWithdraw is Test {
         // Request withdraw of 300 FOX
         foxStaking.requestWithdraw(300);
 
+        // Ensure attempting to withdraw the 300 FOX reverts
+        vm.expectRevert("Not cooled down yet");
+        foxStaking.withdraw(300);
+
         // Check cooldown period is set
         vm.assertEq(foxStaking.coolDownInfo(user), block.timestamp + 28 days);
 

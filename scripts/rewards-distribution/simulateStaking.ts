@@ -11,7 +11,8 @@ export const simulateStaking = async () => {
     const walletClient = localWalletClient
     const publicClient = localPublicClient
     // Deploy the MockFOXToken contract from Alice's wallet
-    const [alice, bob] = await walletClient.getAddresses()
+    // Assume Alice is the deployer and not a user i.e don't reuse this address for staking
+    const [alice, bob, charlie, craig] = await walletClient.getAddresses()
     const mockFoxtokenDeployHash = await walletClient.deployContract({
       abi: MockFOXToken.abi,
       account: alice,
@@ -40,19 +41,38 @@ export const simulateStaking = async () => {
       args: []
     }) as number
 
-   // Make FOX rain to Bob
+    const charactersCast = {bob: {
+      address: bob,
+      nickname: 'Bob',
+      amountToStake: '4242'
+    }, 
+    charlie: {
+      address: charlie,
+      nickname: 'Charlie',
+      amountToStake: '1337'
+    },
+    craig: {
+      address: craig,
+      nickname: 'Craig',
+      amountToStake: '6900'
+    },
+    }
+
+    const stakingPromises = Object.values(charactersCast).map(async ({nickname, address, amountToStake}) => {
+
+   // Make 10,000 FOX rain to each user 
     const makeItRainTxHash = await walletClient.writeContract({
       address: mockFoxtokenContractAddress as Address,
       abi: MockFOXToken.abi,
-      account: bob,
+      account: address,
       functionName: 'makeItRain',
-      args: [bob, parseUnits('1000', foxDecimals)],
+      args: [address, parseUnits('10000', foxDecimals)],
     });
 
     await publicClient.waitForTransactionReceipt({ hash: makeItRainTxHash });
-    console.log(`1000 FOX tokens sent to Bob`);
+    console.log(`10k FOX tokens sent to ${nickname}`);
 
-    const amountToStakeCryptoPrecision = '100'
+    const amountToStakeCryptoPrecision = amountToStake
     const amountToStakeCryptoBaseUnit = parseUnits(amountToStakeCryptoPrecision, foxDecimals)
 
     // Approve FOX to be spent by the FOXStaking contract
@@ -60,7 +80,7 @@ export const simulateStaking = async () => {
     const approveTxHash = await walletClient.writeContract({
       address: mockFoxtokenContractAddress as Address,
       abi: MockFOXToken.abi,
-      account: bob,
+      account: address,
       functionName: 'approve',
       args: [mockFoxStakingContractAddress, amountToStakeCryptoBaseUnit],
     });
@@ -71,20 +91,23 @@ export const simulateStaking = async () => {
     const stakeTxHash = await walletClient.writeContract({
       address: mockFoxStakingContractAddress as Address,
       abi: FoxStaking.abi,
-      account: bob,
+      account: address,
       functionName: 'stake',
       args: [amountToStakeCryptoBaseUnit],
     });
 
     const { transactionHash: stakeTransactionHash } = await publicClient.waitForTransactionReceipt({ hash: stakeTxHash });
-    console.log(`Staked ${amountToStakeCryptoPrecision} FOX from Bob to FOXStaking contract: ${stakeTransactionHash}`);
+    console.log(`Staked ${amountToStakeCryptoPrecision} FOX from ${nickname} to FOXStaking contract: ${stakeTransactionHash}`);
 
-    const bobStakedBalance = await publicClient.readContract({
+    const stakedBalance = await publicClient.readContract({
       address: mockFoxStakingContractAddress as Address,
       abi: FoxStaking.abi,
       functionName: 'balanceOf',
-      args: [bob],
+      args: [address],
     }) as number
 
-    console.log(`Bob's staked balance: ${formatUnits(BigInt(bobStakedBalance), foxDecimals)} FOX`);
-}
+    console.log(`${nickname}'s staked balance: ${formatUnits(BigInt(stakedBalance), foxDecimals)} FOX`);
+    })
+
+    await Promise.all(stakingPromises)
+    }

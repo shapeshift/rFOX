@@ -10,8 +10,8 @@ const getLogs = async ({fromBlock, toBlock}: {fromBlock: bigint, toBlock: bigint
   const logs = await localPublicClient.getLogs({  
   // address: '0x'
   events: [
-    parseAbiItem('event Stake(address indexed account, uint256 amount, string runeAddress)'),
-    parseAbiItem('event Unstake(address indexed user, uint256 amount)'),
+    parseAbiItem('event Stake(address indexed account, uint256 amount, string indexed runeAddress)'),
+    parseAbiItem('event Unstake(address indexed account, uint256 amount)'),
   ],
   fromBlock,
   toBlock
@@ -42,17 +42,17 @@ const getEpochBlockReward = (_epochEndBlockNumber: bigint) => {
 
 // get the block range for the current epoch
 const getEpochBlockRange = () => {
-  // Monkey-patched to 0 and 5 for testing for now since the current simulation only goes up to block 5
+  // Monkey-patched to 0 and 17 for testing for now since the current simulation only goes up to block 5
   const previousEpochEndBlockNumber = 0n
-  const currentBlockNumber = 5n
+  const currentBlockNumber = 17n
   return { fromBlockNumber: previousEpochEndBlockNumber, toBlockNumber: currentBlockNumber }
 }
 
 // TODO: this should only process 1 epoch at a time
 const main = async () => {
   await simulateStaking()
-  // While testing, and with the current simulation flow we only need logs from block 1 to 5 but this may change
-  const logs = await getLogs({fromBlock: 0n, toBlock: 5n})
+  // While testing, and with the current simulation flow we only need logs from block 1 to 17 but this may change
+  const logs = await getLogs({fromBlock: 0n, toBlock: 17n})
   // index logs by block number
   const logsByBlockNumber = logs.reduce<Record<string, StakingLog[]>>((acc, log) => {
     if (!acc[log.blockNumber.toString()]) {

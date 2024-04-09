@@ -7,10 +7,10 @@ import {console} from "forge-std/Script.sol";
 
 contract FoxStaking is IFoxStaking {
     IERC20 public foxToken;
-    mapping(address => uint256) private stakingBalances;
-    mapping(address => uint256) private unstakingBalances;
-    mapping(address => uint256) private cooldownInfo;
-    mapping(address => string) private runePairingAddresses;
+    mapping(address => uint256) stakingBalances;
+    mapping(address => uint256) unstakingBalances;
+    mapping(address => uint256) cooldownInfo;
+    mapping(address => string) runePairingAddresses;
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
     uint256 public constant COOLDOWN_PERIOD = 28 days;
 

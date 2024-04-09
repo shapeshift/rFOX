@@ -86,7 +86,7 @@ contract FoxStaking is
     }
 
     function stake(uint256 amount, string memory runeAddress) external whenNotPaused whenStakingUnpaused {
-        require(bytes(runeAddress).length > 0, "Rune address cannot be empty");
+        require(bytes(runeAddress).length == 43, "Rune address must be 43 characters");
         require(amount > 0, "FOX amount to stake must be greater than 0");
         foxToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -131,6 +131,7 @@ contract FoxStaking is
     }
 
     function setRuneAddress(string memory runeAddress) external {
+        require(bytes(runeAddress).length == 43, "Rune address must be 43 characters");
         StakingInfo storage info = stakingInfo[msg.sender];
         string memory oldRuneAddress = info.runeAddress;
         info.runeAddress = runeAddress;

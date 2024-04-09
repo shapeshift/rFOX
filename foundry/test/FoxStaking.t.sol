@@ -32,7 +32,7 @@ contract FOXStakingTestRuneAddress is Test {
   function testCanSetRuneAddress() public {
     vm.startPrank(user);
 
-    string memory newRuneAddress = "thorFooBarBaz";
+    string memory newRuneAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
 
     foxStaking.setRuneAddress(newRuneAddress);
 
@@ -49,6 +49,17 @@ contract FOXStakingTestRuneAddress is Test {
 
     vm.expectRevert("Rune address cannot be empty");
     foxStaking.stake(1e18, emptyRuneAddress);
+
+    vm.stopPrank();
+  }
+
+  function cannotStakeWithInvalidLengthRuneAddress() public {
+    vm.startPrank(user);
+
+    string memory invalidLengthRuneAddress = "thor1234";
+
+    vm.expectRevert("Rune address must be 42 characters");
+    foxStaking.stake(1e18, invalidLengthRuneAddress);
 
     vm.stopPrank();
   }
@@ -107,7 +118,7 @@ contract FOXStakingTestStaking is Test {
     function testCanStakeAfterUnpausingStake() public {
       address user = address(0xBABE);
       uint256 amount = 1000;
-      string memory runeAddress = "runeAddress";
+      string memory runeAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
 
       foxToken.makeItRain(user, amount);
 
@@ -155,7 +166,7 @@ contract FOXStakingTestStaking is Test {
 
       address user = address(0xBABE);
       uint256 amount = 1000;
-      string memory runeAddress = "runeAddress";
+      string memory runeAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
 
 
       (uint256 stakingBalance_before, uint256 unstakingBalance_before, , ) = foxStaking.stakingInfo(user);
@@ -184,7 +195,7 @@ contract FOXStakingTestStaking is Test {
 
     function testStake_cannotStakeZero() public {
         address user = address(0xD00D);
-        string memory runeAddress = "runeAddress";
+        string memory runeAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
 
         vm.startPrank(user);
 
@@ -219,7 +230,7 @@ contract FOXStakingTestStaking is Test {
         vm.assertEq(unstakingBalance, 0);
 
         // Try to stake with empty rune address
-        vm.expectRevert("Rune address cannot be empty");
+        vm.expectRevert("Rune address must be 43 characters");
         foxStaking.stake(1e18, "");
 
         // Check user staking balances are unchanged
@@ -233,6 +244,7 @@ contract FOXStakingTestStaking is Test {
 
     // "e2e" staking test for multiple users
     function testStaking() public {
+        string memory baseRuneAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncs"; // 42 chars - so we can append another to make it 43
         address[] memory users = new address[](3);
         users[0] = address(0xBABE);
         users[1] = address(0xC0DE);
@@ -245,8 +257,9 @@ contract FOXStakingTestStaking is Test {
 
         // Simulate each user staking FOX tokens
         for (uint256 i = 0; i < users.length; i++) {
-            // Unique mock address per user
-            string memory runeAddress = string(abi.encodePacked("runeAddress", Strings.toString(i)));
+            // Pseudo-random RUNE addy - takes the base one above and changes the last char each iteration
+            string memory indexChar = Strings.toString(i % 10);
+            string memory runeAddress = string(abi.encodePacked(baseRuneAddress, indexChar));
             // Free FOX tokens for each user
             foxToken.makeItRain(users[i], amounts[i]);
             // https://book.getfoundry.sh/cheatcodes/start-prank
@@ -270,7 +283,7 @@ contract FOXStakingTestUnstake is Test {
     address user = address(0xBEEF);
     uint256 amount = 1000;
 
-    string constant runeAddress = "thorFooBarBaz";
+    string constant runeAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
 
     function setUp() public {
         foxToken = new MockFOXToken();
@@ -487,7 +500,7 @@ contract FOXStakingTestWithdraw is Test {
     address user = address(0xBEEF);
     uint256 amount = 1000;
 
-    string constant runeAddress = "thorFooBarBaz";
+    string constant runeAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
 
     function setUp() public {
         foxToken = new MockFOXToken();

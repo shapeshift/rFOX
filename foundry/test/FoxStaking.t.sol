@@ -58,7 +58,7 @@ contract FOXStakingTestStaking is Test {
     }
 }
 
-contract FOXStakingTestRequestWithdraw is Test {
+contract FOXStakingTestunstake is Test {
     FoxStaking public foxStaking;
     MockFOXToken public foxToken;
     address user = address(0xBEEF);
@@ -82,7 +82,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.stopPrank();
     }
 
-    function testRequestWithdraw_cannotRequestZero() public {
+    function testunstake_cannotRequestZero() public {
         vm.startPrank(user);
 
         // Check user staking balances
@@ -93,7 +93,7 @@ contract FOXStakingTestRequestWithdraw is Test {
 
         // Try to request withdraw 0
         vm.expectRevert("Cannot withdraw 0");
-        foxStaking.requestWithdraw(0);
+        foxStaking.unstake(0);
 
         // Check user staking balances are unchanged
         (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
@@ -105,7 +105,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.stopPrank();
     }
 
-    function testRequestWithdraw_cannotRequestMoreThanBalance() public {
+    function testunstake_cannotRequestMoreThanBalance() public {
         vm.startPrank(user);
 
         // Check user staking balances
@@ -116,7 +116,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         
         // Try to request more than balance
         vm.expectRevert("Withdraw amount exceeds staked balance");
-        foxStaking.requestWithdraw(amount + 1);
+        foxStaking.unstake(amount + 1);
 
         // Check user staking balances are unchanged
         (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
@@ -127,7 +127,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.stopPrank();
     }
 
-    function testRequestWithdraw_canRequestBalance() public {
+    function testunstake_canRequestBalance() public {
         vm.startPrank(user);
 
         // Check user staking balances
@@ -137,7 +137,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.assertEq(unstakingBalance_before, 0);
 
         // Try to request exact balance
-        foxStaking.requestWithdraw(amount);
+        foxStaking.unstake(amount);
 
         // Check user staking balances reflect the withdrawal request
         (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
@@ -148,7 +148,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.stopPrank();
     }
 
-    function testRequestWithdraw_canPartialBalance() public {
+    function testunstake_canPartialBalance() public {
         vm.startPrank(user);
 
         // Check user staking balances
@@ -158,7 +158,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.assertEq(unstakingBalance_before, 0);
 
         // Try to request exact balance
-        foxStaking.requestWithdraw(800);
+        foxStaking.unstake(800);
 
         // Check user staking balances reflect the withdrawal request
         (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
@@ -170,7 +170,7 @@ contract FOXStakingTestRequestWithdraw is Test {
     }
 
     // Tests that requesting to withdraw part of the balance, waiting the cooldown period, withdrawing, then requesting the rest of the balance works
-    function testRequestWithdraw_partialWithdrawThenFullWithdraw() public {
+    function testunstake_partialWithdrawThenFullWithdraw() public {
         vm.startPrank(user);
 
         // Check user staking balances
@@ -180,7 +180,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.assertEq(unstakingBalance_before, 0);
 
         // Request withdraw of 300 FOX
-        foxStaking.requestWithdraw(300);
+        foxStaking.unstake(300);
 
         // Ensure attempting to withdraw the 300 FOX reverts
         vm.expectRevert("Not cooled down yet");
@@ -208,7 +208,7 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.assertEq(unstakingBalance_two, 0);
 
         // Request withdraw of the remaining 700 FOX
-        foxStaking.requestWithdraw(700);
+        foxStaking.unstake(700);
 
         // Check cooldown period is set
         (uint256 stakingBalance_three, uint256 unstakingBalance_three, uint256 cooldownExpiry_three, ) = foxStaking.stakingInfo(user);
@@ -256,7 +256,7 @@ contract FOXStakingTestWithdraw is Test {
         assertEq(foxToken.balanceOf(user), 0);
 
         // Request withdraw
-        foxStaking.requestWithdraw(amount);
+        foxStaking.unstake(amount);
 
         // Fast-forward time by 28 days minus 1 second
         vm.warp(block.timestamp + 28 days - 1 seconds);
@@ -278,7 +278,7 @@ contract FOXStakingTestWithdraw is Test {
         assertEq(foxToken.balanceOf(user), 0);
 
         // Request withdraw
-        foxStaking.requestWithdraw(amount);
+        foxStaking.unstake(amount);
 
         // Fast-forward time by 28 days
         vm.warp(block.timestamp + 28 days);
@@ -299,7 +299,7 @@ contract FOXStakingTestWithdraw is Test {
         assertEq(foxToken.balanceOf(user), 0);
 
         // Request withdraw
-        foxStaking.requestWithdraw(amount);
+        foxStaking.unstake(amount);
 
         // Fast-forward time by 28 days
         vm.warp(block.timestamp + 28 days);
@@ -321,7 +321,7 @@ contract FOXStakingTestWithdraw is Test {
         assertEq(foxToken.balanceOf(user), 0);
 
         // Request withdraw
-        foxStaking.requestWithdraw(amount);
+        foxStaking.unstake(amount);
 
         // Fast-forward time by 28 days
         vm.warp(block.timestamp + 28 days);
@@ -343,7 +343,7 @@ contract FOXStakingTestWithdraw is Test {
         assertEq(foxToken.balanceOf(user), 0);
 
         // Request withdraw
-        foxStaking.requestWithdraw(amount);
+        foxStaking.unstake(amount);
 
         // Fast-forward time by 28 days
         vm.warp(block.timestamp + 28 days);

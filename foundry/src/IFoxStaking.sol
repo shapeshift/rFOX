@@ -21,7 +21,7 @@ interface IFoxStaking {
     /// @notice Initiates the unstake process for a specified amount of FOX, starting the cooldown period (28 days).
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     /// @param amount The amount of FOX tokens to be unstaked.
-    function requestWithdraw(uint256 amount) external;
+    function unstake(uint256 amount) external;
 
     /// @notice Withdraws FOX tokens - assuming the unstake cooldown period has completed - else reverts
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another

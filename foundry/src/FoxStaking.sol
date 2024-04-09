@@ -35,7 +35,7 @@ contract FoxStaking is IFoxStaking {
         emit Stake(msg.sender, amount, runeAddress);
     }
 
-    function requestWithdraw(uint256 amount) external {
+    function unstake(uint256 amount) external {
         require(amount > 0, "Cannot withdraw 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 

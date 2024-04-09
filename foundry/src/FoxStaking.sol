@@ -5,7 +5,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
-import {console} from "forge-std/Script.sol";
 
 contract FoxStaking is 
   IFoxStaking, 

@@ -60,6 +60,8 @@ export const simulateStaking = async () => {
 
     const stakingPromises = Object.values(charactersCast).map(async ({nickname, address, amountToStake}) => {
 
+    const runeAddress = `thor${nickname}`
+
    // Make 10,000 FOX rain to each user 
     const makeItRainTxHash = await walletClient.writeContract({
       address: mockFoxtokenContractAddress as Address,
@@ -93,7 +95,7 @@ export const simulateStaking = async () => {
       abi: FoxStaking.abi,
       account: address,
       functionName: 'stake',
-      args: [amountToStakeCryptoBaseUnit],
+      args: [amountToStakeCryptoBaseUnit, runeAddress],
     });
 
     const { transactionHash: stakeTransactionHash } = await publicClient.waitForTransactionReceipt({ hash: stakeTxHash });

@@ -10,7 +10,7 @@ const getLogs = async ({fromBlock, toBlock}: {fromBlock: bigint, toBlock: bigint
   const logs = await localPublicClient.getLogs({  
   // address: '0x'
   events: [
-    parseAbiItem('event Stake(address indexed account, uint256 amount)'),
+    parseAbiItem('event Stake(address indexed account, uint256 amount, string indexed runeAddress)'),
     parseAbiItem('event Unstake(address indexed account, uint256 amount)'),
   ],
   fromBlock,

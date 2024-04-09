@@ -2,8 +2,8 @@ name: Foundry
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, develop, feat_unit_tests_full_coverage]
+    push:
+      branches: [main, develop, feat_unit_tests_full_coverage]
   pull_request:
     branches: [main, develop]
 
@@ -30,6 +30,7 @@ jobs:
         run: |
           forge test -vvv
           forge coverage --report lcov
+        id: test
 
   coverage_report:
     name: Enforce 100% coverage
@@ -45,4 +46,4 @@ jobs:
           coverage-files: 'lcov.info'
           minimum-coverage: 100
           update-comment: false
-      id: coverage
+        id: coverage

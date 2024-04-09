@@ -7,10 +7,7 @@ import {console} from "forge-std/Script.sol";
 
 contract FoxStaking is IFoxStaking {
     IERC20 public foxToken;
-    mapping(address => uint256) stakingBalances;
-    mapping(address => uint256) unstakingBalances;
-    mapping(address => uint256) cooldownInfo;
-    mapping(address => string) runePairingAddresses;
+    mapping(address => StakingInfo) public stakingInfo;
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
     uint256 public constant COOLDOWN_PERIOD = 28 days;
 
@@ -32,64 +29,58 @@ contract FoxStaking is IFoxStaking {
             "Transfer failed"
         );
 
-        stakingBalances[msg.sender] += amount;
+        StakingInfo storage info = stakingInfo[msg.sender];
+        info.stakingBalance += amount;
 
         emit Stake(msg.sender, amount, runeAddress);
     }
 
     function requestWithdraw(uint256 amount) external {
-        uint256 stakedBalance = stakingBalances[msg.sender];
         require(amount > 0, "Cannot withdraw 0");
+        StakingInfo storage info = stakingInfo[msg.sender];
 
         // User can only request withdraw for their staking balance, not more, and not their unstaking balance
         require(
-            amount <= stakedBalance,
+            amount <= info.stakingBalance,
             "Withdraw amount exceeds staked balance"
         );
 
         // Set staking / unstaking amounts
-        stakingBalances[msg.sender] -= amount;
-        unstakingBalances[msg.sender] += amount;
+        info.stakingBalance -= amount;
+        info.unstakingBalance += amount;
 
         // Set or update the cooldown period
-        cooldownInfo[msg.sender] = block.timestamp + COOLDOWN_PERIOD;
+        info.cooldownExpiry = block.timestamp + COOLDOWN_PERIOD;
 
         emit Unstake(msg.sender, amount);
     }
 
     function withdraw(uint256 amount) external {
+        require(amount > 0, "Cannot withdraw 0");
+
+        StakingInfo storage info = stakingInfo[msg.sender];
         // Note this doesn't do partial cooldowns for a given amount - currently we assume a global cooldown per address
         require(
-            block.timestamp >= cooldownInfo[msg.sender],
+            block.timestamp >= info.cooldownExpiry,
             "Not cooled down yet"
         );
-        require(amount > 0, "Cannot withdraw 0");
         require(
-            amount <= unstakingBalances[msg.sender],
+            amount <= info.unstakingBalance,
             "Withdraw amount exceeds unstaking balance"
         );
-        unstakingBalances[msg.sender] -= amount;
+        info.unstakingBalance -= amount;
         require(foxToken.transfer(msg.sender, amount), "Transfer failed");
         emit Withdraw(msg.sender, amount);
     }
 
     function setRuneAddress(string memory runeAddress) external {
-        runePairingAddresses[msg.sender] = runeAddress;
+        StakingInfo storage info = stakingInfo[msg.sender];
+        info.runeAddress = runeAddress;
         emit SetRuneAddress(msg.sender, runeAddress);
     }
 
     function balanceOf(address account) external view returns (uint256 total) {
-        uint256 unstaking = unstakingBalances[account];
-        uint256 staking = stakingBalances[account];
-        total = unstaking + staking;
-        return total;
-    }
-
-    function stakingInfo(address account) external view returns (StakingInfo memory) {
-      return StakingInfo({
-        stakingBalance: stakingBalances[account],
-        unstakingBalance: unstakingBalances[account],
-        cooldownExpiry: cooldownInfo[account] 
-      });
+        StakingInfo memory info = stakingInfo[account];
+        return info.stakingBalance + info.unstakingBalance;
     }
 }

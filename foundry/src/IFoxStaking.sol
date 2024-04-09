@@ -5,6 +5,7 @@ struct StakingInfo {
   uint256 stakingBalance;
   uint256 unstakingBalance;
   uint256 cooldownExpiry;
+  string runeAddress;
 }
 
 
@@ -39,12 +40,4 @@ interface IFoxStaking {
     function balanceOf(
         address account
     ) external view returns (uint256 total);
-
-    /// @notice Retrieve cooldown information for a given address.
-    /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
-    /// @param account The address to query cooldown info for.
-    /// @return StakingInfo A Struct containing the staking balance, unstaking balance, and cooldown expiry timestamp.
-    function stakingInfo(
-      address account
-    ) external view returns (StakingInfo memory);
 }

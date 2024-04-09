@@ -31,9 +31,13 @@ contract FOXStakingTestOwnership is Test {
 
     function testOwnerCanUpdateCooldownPeriod() public {
         uint256 newCooldownPeriod = 14 days;
-        
+
         foxStaking.setCooldownPeriod(newCooldownPeriod);
-        assertEq(foxStaking.cooldownPeriod(), newCooldownPeriod, "setCooldownPeriod should update the cooldown period when called by the owner");
+        assertEq(
+            foxStaking.cooldownPeriod(),
+            newCooldownPeriod,
+            "setCooldownPeriod should update the cooldown period when called by the owner"
+        );
     }
 
     function testNonOwnerCannotUpdateCooldownPeriod() public {
@@ -41,10 +45,10 @@ contract FOXStakingTestOwnership is Test {
 
         vm.prank(nonOwner);
         vm.expectRevert(
-          abi.encodeWithSelector(
-            Ownable.OwnableUnauthorizedAccount.selector,
-            address(nonOwner)
-          )
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                address(nonOwner)
+            )
         );
         foxStaking.setCooldownPeriod(newCooldownPeriod);
     }
@@ -60,23 +64,25 @@ contract FOXStakingTestStaking is Test {
     }
 
     function testCannotStakeWhenStakingPaused() public {
-      foxStaking.pauseStaking();
+        foxStaking.pauseStaking();
 
-      address user = address(0xBABE);
-      vm.startPrank(user);
-      vm.expectRevert("Staking is paused");
-      foxStaking.stake(1e18, "runeAddress");
-      vm.stopPrank();
+        address user = address(0xBABE);
+        vm.startPrank(user);
+        vm.expectRevert("Staking is paused");
+        foxStaking.stake(1e18, "runeAddress");
+        vm.stopPrank();
     }
 
     function testCannotStakeWhenContractPaused() public {
-      foxStaking.pause();
+        foxStaking.pause();
 
-      address user = address(0xBABE);
-      vm.startPrank(user);
-      vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
-      foxStaking.stake(1e18, "runeAddress");
-      vm.stopPrank();
+        address user = address(0xBABE);
+        vm.startPrank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(Pausable.EnforcedPause.selector)
+        );
+        foxStaking.stake(1e18, "runeAddress");
+        vm.stopPrank();
     }
 
     function testStaking() public {
@@ -93,7 +99,9 @@ contract FOXStakingTestStaking is Test {
         // Simulate each user staking FOX tokens
         for (uint256 i = 0; i < users.length; i++) {
             // Unique mock address per user
-            string memory runeAddress = string(abi.encodePacked("runeAddress", Strings.toString(i)));
+            string memory runeAddress = string(
+                abi.encodePacked("runeAddress", Strings.toString(i))
+            );
             // Free FOX tokens for each user
             foxToken.makeItRain(users[i], amounts[i]);
             // https://book.getfoundry.sh/cheatcodes/start-prank
@@ -105,7 +113,7 @@ contract FOXStakingTestStaking is Test {
             vm.stopPrank();
 
             // Verify each user's staked amount
-            (uint256 total) = foxStaking.balanceOf(users[i]);
+            uint256 total = foxStaking.balanceOf(users[i]);
             assertEq(total, amounts[i]);
         }
     }
@@ -136,31 +144,31 @@ contract FOXStakingTestUnstake is Test {
     }
 
     function testCannotUnstakeWhenUnstakingPaused() public {
-      foxStaking.pauseUnstaking();
+        foxStaking.pauseUnstaking();
 
-      vm.startPrank(user);
-      vm.expectRevert("Unstaking is paused");
-      foxStaking.unstake(amount);
-      vm.stopPrank();
+        vm.startPrank(user);
+        vm.expectRevert("Unstaking is paused");
+        foxStaking.unstake(amount);
+        vm.stopPrank();
     }
 
     function testCannotUnstakeWhenContractPaused() public {
-      foxStaking.pause();
+        foxStaking.pause();
 
-      vm.startPrank(user);
-      vm.expectRevert(abi.encodeWithSelector(
-            Pausable.EnforcedPause.selector
-          )
-      );
-      foxStaking.unstake(amount);
-      vm.stopPrank();
+        vm.startPrank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(Pausable.EnforcedPause.selector)
+        );
+        foxStaking.unstake(amount);
+        vm.stopPrank();
     }
 
     function testunstake_cannotRequestZero() public {
         vm.startPrank(user);
 
         // Check user staking balances
-        (uint256 stakingBalance, uint256 unstakingBalance, , ) = foxStaking.stakingInfo(user);
+        (uint256 stakingBalance, uint256 unstakingBalance, , ) = foxStaking
+            .stakingInfo(user);
         vm.assertEq(stakingBalance + unstakingBalance, 1000);
         vm.assertEq(stakingBalance, 1000);
         vm.assertEq(unstakingBalance, 0);
@@ -170,7 +178,12 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(0);
 
         // Check user staking balances are unchanged
-        (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_after,
+            uint256 unstakingBalance_after,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
 
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 1000);
@@ -183,17 +196,27 @@ contract FOXStakingTestUnstake is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (uint256 stakingBalance_before, uint256 unstakingBalance_before, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_before,
+            uint256 unstakingBalance_before,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
         vm.assertEq(unstakingBalance_before, 0);
-        
+
         // Try to request more than balance
         vm.expectRevert("Unstake amount exceeds staked balance");
         foxStaking.unstake(amount + 1);
 
         // Check user staking balances are unchanged
-        (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_after,
+            uint256 unstakingBalance_after,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 1000);
         vm.assertEq(unstakingBalance_after, 0);
@@ -205,7 +228,12 @@ contract FOXStakingTestUnstake is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (uint256 stakingBalance_before, uint256 unstakingBalance_before, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_before,
+            uint256 unstakingBalance_before,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
         vm.assertEq(unstakingBalance_before, 0);
@@ -214,7 +242,12 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(amount);
 
         // Check user staking balances reflect the withdrawal request
-        (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_after,
+            uint256 unstakingBalance_after,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 0);
         vm.assertEq(unstakingBalance_after, 1000);
@@ -226,7 +259,12 @@ contract FOXStakingTestUnstake is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (uint256 stakingBalance_before, uint256 unstakingBalance_before, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_before,
+            uint256 unstakingBalance_before,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
         vm.assertEq(unstakingBalance_before, 0);
@@ -235,7 +273,12 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(800);
 
         // Check user staking balances reflect the withdrawal request
-        (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_after,
+            uint256 unstakingBalance_after,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 200);
         vm.assertEq(unstakingBalance_after, 800);
@@ -248,7 +291,12 @@ contract FOXStakingTestUnstake is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (uint256 stakingBalance_before, uint256 unstakingBalance_before, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_before,
+            uint256 unstakingBalance_before,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
         vm.assertEq(unstakingBalance_before, 0);
@@ -261,7 +309,12 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.withdraw();
 
         // Check cooldown period is set
-        (uint256 stakingBalance_one, uint256 unstakingBalance_one, uint256 cooldownExpiry_one, ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_one,
+            uint256 unstakingBalance_one,
+            uint256 cooldownExpiry_one,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(cooldownExpiry_one, block.timestamp + 28 days);
 
         // Check user staking balances reflect the withdrawal request
@@ -276,7 +329,12 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.withdraw();
 
         // Check user staking balances reflect the withdrawal
-        (uint256 stakingBalance_two, uint256 unstakingBalance_two, , ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_two,
+            uint256 unstakingBalance_two,
+            ,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_two + unstakingBalance_two, 700);
         vm.assertEq(stakingBalance_two, 700);
         vm.assertEq(unstakingBalance_two, 0);
@@ -285,7 +343,12 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(700);
 
         // Check cooldown period is set
-        (uint256 stakingBalance_three, uint256 unstakingBalance_three, uint256 cooldownExpiry_three, ) = foxStaking.stakingInfo(user);
+        (
+            uint256 stakingBalance_three,
+            uint256 unstakingBalance_three,
+            uint256 cooldownExpiry_three,
+
+        ) = foxStaking.stakingInfo(user);
         vm.assertGt(cooldownExpiry_three, block.timestamp);
 
         // Check user staking balances reflect the withdrawal request
@@ -324,21 +387,23 @@ contract FOXStakingTestWithdraw is Test {
     }
 
     function testCannotWithdrawWhenWithdrawalsPaused() public {
-      foxStaking.pauseWithdrawals();
+        foxStaking.pauseWithdrawals();
 
-      vm.startPrank(user);
-      vm.expectRevert("Withdrawals are paused"); // Make sure this matches the actual revert message used in your contract
-      foxStaking.withdraw();
-      vm.stopPrank();
+        vm.startPrank(user);
+        vm.expectRevert("Withdrawals are paused"); // Make sure this matches the actual revert message used in your contract
+        foxStaking.withdraw();
+        vm.stopPrank();
     }
 
     function testCannotWithdrawWhenContractPaused() public {
-      foxStaking.pause();
+        foxStaking.pause();
 
-      vm.startPrank(user);
-      vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
-      foxStaking.withdraw();
-      vm.stopPrank();
+        vm.startPrank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(Pausable.EnforcedPause.selector)
+        );
+        foxStaking.withdraw();
+        vm.stopPrank();
     }
 
     function testWithdraw_cannotWithdrawBeforeCooldown() public {

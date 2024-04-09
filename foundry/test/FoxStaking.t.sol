@@ -89,6 +89,7 @@ contract FOXStakingTestOwnership is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         foxStaking = new FoxStaking(address(foxToken));
+        foxStaking.initialize();
     }
 
     function testOwnerCanUpdateCooldownPeriod() public {
@@ -123,6 +124,7 @@ contract FOXStakingTestStaking is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         foxStaking = new FoxStaking(address(foxToken));
+        foxStaking.initialize();
     }
 
     function testCannotStakeWhenStakingPaused() public {
@@ -346,6 +348,7 @@ contract FOXStakingTestUnstake is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         foxStaking = new FoxStaking(address(foxToken));
+        foxStaking.initialize();
 
         // Free FOX tokens for user
         foxToken.makeItRain(user, amount);
@@ -627,6 +630,7 @@ contract FOXStakingTestWithdraw is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         foxStaking = new FoxStaking(address(foxToken));
+        foxStaking.initialize();
 
         // Free FOX tokens for user
         foxToken.makeItRain(user, amount);

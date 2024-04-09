@@ -5,25 +5,24 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract FoxStaking is
     IFoxStaking,
     Ownable(msg.sender), // Deployer is the owner
-    Pausable
+    Pausable,
+    Initializable
 {
     using SafeERC20 for IERC20;
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
-
-    bool public stakingPaused = false;
-    bool public withdrawalsPaused = false;
-    bool public unstakingPaused = false;
-
-    uint256 public cooldownPeriod = 28 days;
+    bool public stakingPaused;
+    bool public withdrawalsPaused;
+    bool public unstakingPaused;
+    uint256 public cooldownPeriod;
 
     event UpdateCooldownPeriod(uint256 newCooldownPeriod);
-
     event Stake(
         address indexed account,
         uint256 amount,
@@ -36,6 +35,13 @@ contract FoxStaking is
         string indexed oldRuneAddress,
         string indexed newRuneAddress
     );
+
+    function initialize() external initializer {
+        stakingPaused = false;
+        withdrawalsPaused = false;
+        unstakingPaused = false;
+        cooldownPeriod = 28 days;
+    }
 
     constructor(address foxTokenAddress) {
         foxToken = IERC20(foxTokenAddress);

@@ -29,6 +29,41 @@ contract FOXStakingTestRuneAddress is Test {
     foxStaking = new FoxStaking(address(foxToken));
   }
 
+  function testCanSetRuneAddress() public {
+    vm.startPrank(user);
+
+    string memory newRuneAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
+
+    foxStaking.setRuneAddress(newRuneAddress);
+
+    (, , , string memory runeAddress) = foxStaking.stakingInfo(user);
+    assertEq(runeAddress, newRuneAddress, "setRuneAddress should update the rune address when called by the owner");
+
+    vm.stopPrank();
+  }
+
+  function testCannotSetInvalidLengthRuneAddress() public {
+    vm.startPrank(user);
+
+    string memory invalidLengthRuneAddress = "thor1234";
+
+    vm.expectRevert("Rune address must be 43 characters");
+    foxStaking.setRuneAddress(invalidLengthRuneAddress);
+
+    vm.stopPrank();
+  }
+
+  function cannotStakeWithEmptyRuneAddress() public {
+    vm.startPrank(user);
+
+    string memory emptyRuneAddress = "";
+
+    vm.expectRevert("Rune address cannot be empty");
+    foxStaking.stake(1e18, emptyRuneAddress);
+
+    vm.stopPrank();
+  }
+
   function cannotStakeWithInvalidLengthRuneAddress() public {
     vm.startPrank(user);
 

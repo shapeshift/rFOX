@@ -23,10 +23,9 @@ interface IFoxStaking {
     /// @param amount The amount of FOX tokens to be unstaked.
     function unstake(uint256 amount) external;
 
-    /// @notice Withdraws FOX tokens - assuming the unstake cooldown period has completed - else reverts
+    /// @notice Withdraws FOX tokens - assuming there's anything to withdraw and unstake cooldown period has completed - else reverts
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    /// @param amount The amount of FOX tokens to withdraw.
-    function withdraw(uint256 amount) external;
+    function withdraw() external;
 
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another

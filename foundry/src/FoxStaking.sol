@@ -55,22 +55,18 @@ contract FoxStaking is IFoxStaking {
         emit Unstake(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) external {
-        require(amount > 0, "Cannot withdraw 0");
-
+    function withdraw() external {
         StakingInfo storage info = stakingInfo[msg.sender];
-        // Note this doesn't do partial cooldowns for a given amount - currently we assume a global cooldown per address
+
+        require(info.unstakingBalance > 0, "Cannot withdraw 0");
         require(
             block.timestamp >= info.cooldownExpiry,
             "Not cooled down yet"
         );
-        require(
-            amount <= info.unstakingBalance,
-            "Withdraw amount exceeds unstaking balance"
-        );
-        info.unstakingBalance -= amount;
-        require(foxToken.transfer(msg.sender, amount), "Transfer failed");
-        emit Withdraw(msg.sender, amount);
+        uint256 withdrawAmount = info.unstakingBalance;
+        info.unstakingBalance = 0;
+        require(foxToken.transfer(msg.sender, withdrawAmount), "Transfer failed");
+        emit Withdraw(msg.sender, withdrawAmount);
     }
 
     function setRuneAddress(string memory runeAddress) external {

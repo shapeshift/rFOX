@@ -2,28 +2,26 @@
 pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IFoxStaking} from "./IFoxStaking.sol";
+import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 import {console} from "forge-std/Script.sol";
 
 contract FoxStaking is IFoxStaking {
     IERC20 public foxToken;
-    mapping(address => uint256) private stakingBalances;
-    mapping(address => uint256) private unstakingBalances;
-    mapping(address => uint256) private cooldownInfo;
-    mapping(address => string) private runePairingAddresses;
+    mapping(address => StakingInfo) public stakingInfo;
     // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
     uint256 public constant COOLDOWN_PERIOD = 28 days;
 
-    event Stake(address indexed account, uint256 amount);
+    event Stake(address indexed account, uint256 amount, string indexed runeAddress);
     event Unstake(address indexed account, uint256 amount);
     event Withdraw(address indexed account, uint256 amount);
-    event SetRuneAddress(address indexed account, string newRuneAddress);
+    event SetRuneAddress(address indexed account, string indexed newRuneAddress);
 
     constructor(address foxTokenAddress) {
         foxToken = IERC20(foxTokenAddress);
     }
 
-    function stake(uint256 amount) external {
+    function stake(uint256 amount, string memory runeAddress) external {
+        require(bytes(runeAddress).length > 0, "Rune address cannot be empty");
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
         require(
@@ -31,76 +29,54 @@ contract FoxStaking is IFoxStaking {
             "Transfer failed"
         );
 
-        stakingBalances[msg.sender] += amount;
+        StakingInfo storage info = stakingInfo[msg.sender];
+        info.stakingBalance += amount;
 
-        emit Stake(msg.sender, amount);
+        emit Stake(msg.sender, amount, runeAddress);
     }
 
-    function requestWithdraw(uint256 amount) external {
-        require(amount > 0, "Cannot withdraw 0");
-        require(
-            amount <=
-                stakingBalances[msg.sender] + unstakingBalances[msg.sender],
-            "Withdraw amount exceeds staked balance"
-        );
-        // Check if the user has already requested a withdrawal for the same amount or more
-        // Prevents a user from waiting longer than necessary to withdraw
-        require(amount > unstakingBalances[msg.sender], "Redundant request");
+    function unstake(uint256 amount) external {
+        require(amount > 0, "Cannot unstake 0");
+        StakingInfo storage info = stakingInfo[msg.sender];
 
-        // Reset a previous withdrawal request if it exists
-        if (unstakingBalances[msg.sender] > 0) {
-            stakingBalances[msg.sender] += unstakingBalances[msg.sender];
-            unstakingBalances[msg.sender] = 0;
-        }
+        // User can only unstake (request withdraw) for their staking balance, not more, and not their unstaking balance
+        require(
+            amount <= info.stakingBalance,
+            "Unstake amount exceeds staked balance"
+        );
 
         // Set staking / unstaking amounts
-        stakingBalances[msg.sender] -= amount;
-        unstakingBalances[msg.sender] = amount;
+        info.stakingBalance -= amount;
+        info.unstakingBalance += amount;
 
-        // Set new cooldown period
-        cooldownInfo[msg.sender] = block.timestamp + COOLDOWN_PERIOD;
+        // Set or update the cooldown period
+        info.cooldownExpiry = block.timestamp + COOLDOWN_PERIOD;
 
         emit Unstake(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) external {
-        // Note this doesn't do partial cooldowns for a given amount - currently we assume a global cooldown per address
+    function withdraw() external {
+        StakingInfo storage info = stakingInfo[msg.sender];
+
+        require(info.unstakingBalance > 0, "Cannot withdraw 0");
         require(
-            block.timestamp >= cooldownInfo[msg.sender],
+            block.timestamp >= info.cooldownExpiry,
             "Not cooled down yet"
         );
-        require(amount > 0, "Cannot withdraw 0");
-        require(
-            amount <= unstakingBalances[msg.sender],
-            "Withdraw amount exceeds unstaking balance"
-        );
-        unstakingBalances[msg.sender] -= amount;
-        require(foxToken.transfer(msg.sender, amount), "Transfer failed");
-        emit Withdraw(msg.sender, amount);
+        uint256 withdrawAmount = info.unstakingBalance;
+        info.unstakingBalance = 0;
+        require(foxToken.transfer(msg.sender, withdrawAmount), "Transfer failed");
+        emit Withdraw(msg.sender, withdrawAmount);
     }
 
     function setRuneAddress(string memory runeAddress) external {
-        runePairingAddresses[msg.sender] = runeAddress;
+        StakingInfo storage info = stakingInfo[msg.sender];
+        info.runeAddress = runeAddress;
         emit SetRuneAddress(msg.sender, runeAddress);
     }
 
-    function balanceOf(
-        address account
-    )
-        external
-        view
-        returns (uint256 total, uint256 staking, uint256 unstaking)
-    {
-        unstaking = unstakingBalances[account];
-        staking = stakingBalances[account];
-        total = unstaking + staking;
-        return (total, staking, unstaking);
-    }
-
-    function coolDownInfo(
-        address account
-    ) external view returns (uint256 expiry) {
-        expiry = cooldownInfo[account];
-        return expiry;
+    function balanceOf(address account) external view returns (uint256 total) {
+        StakingInfo memory info = stakingInfo[account];
+        return info.stakingBalance + info.unstakingBalance;
     }
 }

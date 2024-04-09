@@ -54,7 +54,6 @@ export const simulateStaking = async () => {
 
     const amountToStakeCryptoPrecision = '100'
     const amountToStakeCryptoBaseUnit = parseUnits(amountToStakeCryptoPrecision, foxDecimals)
-    const runeAddress = 'thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv'
 
     // Approve FOX to be spent by the FOXStaking contract
 
@@ -74,7 +73,7 @@ export const simulateStaking = async () => {
       abi: FoxStaking.abi,
       account: bob,
       functionName: 'stake',
-      args: [amountToStakeCryptoBaseUnit, runeAddress],
+      args: [amountToStakeCryptoBaseUnit],
     });
 
     const { transactionHash: stakeTransactionHash } = await publicClient.waitForTransactionReceipt({ hash: stakeTxHash });

@@ -4,6 +4,7 @@ pragma solidity ^0.8.25;
 import "forge-std/Test.sol";
 import "../src/FoxStaking.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract MockFOXToken is ERC20 {
     constructor() ERC20("Mock FOX Token", "FOX") {
@@ -19,8 +20,6 @@ contract MockFOXToken is ERC20 {
 contract FOXStakingTestStaking is Test {
     FoxStaking public foxStaking;
     MockFOXToken public foxToken;
-
-    string constant runeAddress = "thorFooBarBaz";
 
     function setUp() public {
         foxToken = new MockFOXToken();
@@ -40,16 +39,16 @@ contract FOXStakingTestStaking is Test {
 
         // Simulate each user staking FOX tokens
         for (uint256 i = 0; i < users.length; i++) {
+            // Unique mock address per user
+            string memory runeAddress = string(abi.encodePacked("runeAddress", Strings.toString(i)));
             // Free FOX tokens for each user
             foxToken.makeItRain(users[i], amounts[i]);
             // https://book.getfoundry.sh/cheatcodes/start-prank
             vm.startPrank(users[i]);
             // Approve FoxStaking contract to spend user's FOX tokens
             foxToken.approve(address(foxStaking), amounts[i]);
-            // Set rune address
-            foxStaking.setRuneAddress(runeAddress);
             // Stake tokens
-            foxStaking.stake(amounts[i]);
+            foxStaking.stake(amounts[i], runeAddress);
             vm.stopPrank();
 
             // Verify each user's staked amount
@@ -77,10 +76,8 @@ contract FOXStakingTestRequestWithdraw is Test {
         vm.startPrank(user);
         // Approve FoxStaking contract to spend user's FOX tokens
         foxToken.approve(address(foxStaking), amount);
-        // Set rune address
-        foxStaking.setRuneAddress(runeAddress);
         // Stake tokens
-        foxStaking.stake(amount);
+        foxStaking.stake(amount, runeAddress);
 
         vm.stopPrank();
     }
@@ -249,7 +246,7 @@ contract FOXStakingTestWithdraw is Test {
         // Set rune address
         foxStaking.setRuneAddress(runeAddress);
         // Stake tokens
-        foxStaking.stake(amount);
+        foxStaking.stake(amount, runeAddress);
 
         vm.stopPrank();
     }

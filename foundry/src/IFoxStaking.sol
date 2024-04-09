@@ -14,7 +14,8 @@ interface IFoxStaking {
     /// @notice Allows a user to stake a specified amount of FOX tokens and assign a RUNE address for rewards - which can be changed later on.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     /// @param amount The amount of FOX tokens to be staked.
-    function stake(uint256 amount) external;
+    /// @param runeAddress The RUNE address to be associated with the user's staked FOX position.
+    function stake(uint256 amount, string memory runeAddress) external;
 
     /// @notice Initiates the unstake process for a specified amount of FOX, starting the cooldown period (28 days).
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another

@@ -3,15 +3,21 @@ pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 import {console} from "forge-std/Script.sol";
 
 contract FoxStaking is 
   IFoxStaking, 
-  Ownable(msg.sender)  // Deployer is the owner
+  Ownable(msg.sender), // Deployer is the owner
+  Pausable
   {
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
+
+    bool public stakingPaused = false;
+    bool public withdrawalsPaused = false;
+    bool public unstakingPaused = false;
 
     uint256 public cooldownPeriod = 28 days;
 
@@ -26,12 +32,59 @@ contract FoxStaking is
         foxToken = IERC20(foxTokenAddress);
     }
 
+    function pauseStaking() external onlyOwner {
+      stakingPaused = true;
+    }
+
+    function unpauseStaking() external onlyOwner {
+      stakingPaused = false;
+    }
+
+    function pauseWithdrawals() external onlyOwner {
+      withdrawalsPaused = true;
+    }
+
+    function unpauseWithdrawals() external onlyOwner {
+      withdrawalsPaused = false;
+    }
+
+    function pauseUnstaking() external onlyOwner {
+        unstakingPaused = true;
+    }
+
+    function unpauseUnstaking() external onlyOwner {
+        unstakingPaused = false;
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+    modifier whenStakingUnpaused() {
+      require(!stakingPaused, "Staking is paused");
+      _;
+    }
+
+    modifier whenUnstakingUnpaused() {
+      require(!unstakingPaused, "Unstaking is paused");
+      _;
+    }
+
+    modifier whenWithdrawalsUnpaused() {
+      require(!withdrawalsPaused, "Withdrawals are paused");
+      _;
+    }
+
     function setCooldownPeriod(uint256 newCooldownPeriod) external onlyOwner {
         cooldownPeriod = newCooldownPeriod;
         emit UpdateCooldownPeriod(newCooldownPeriod);
     }
 
-    function stake(uint256 amount, string memory runeAddress) external {
+    function stake(uint256 amount, string memory runeAddress) external whenNotPaused whenStakingUnpaused {
         require(bytes(runeAddress).length > 0, "Rune address cannot be empty");
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
@@ -46,7 +99,7 @@ contract FoxStaking is
         emit Stake(msg.sender, amount, runeAddress);
     }
 
-    function unstake(uint256 amount) external {
+    function unstake(uint256 amount) external whenNotPaused whenUnstakingUnpaused {
         require(amount > 0, "Cannot unstake 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 
@@ -66,7 +119,7 @@ contract FoxStaking is
         emit Unstake(msg.sender, amount);
     }
 
-    function withdraw() external {
+    function withdraw() external whenNotPaused whenWithdrawalsUnpaused {
         StakingInfo storage info = stakingInfo[msg.sender];
 
         require(info.unstakingBalance > 0, "Cannot withdraw 0");

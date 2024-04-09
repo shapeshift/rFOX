@@ -26,9 +26,9 @@ contract FoxStaking is
         foxToken = IERC20(foxTokenAddress);
     }
 
-    function setCooldownPeriod(uint256 _cooldownPeriod) external onlyOwner {
-        cooldownPeriod = _cooldownPeriod;
-        emit UpdateCooldownPeriod(_cooldownPeriod);
+    function setCooldownPeriod(uint256 newCooldownPeriod) external onlyOwner {
+        cooldownPeriod = newCooldownPeriod;
+        emit UpdateCooldownPeriod(newCooldownPeriod);
     }
 
     function stake(uint256 amount, string memory runeAddress) external {

@@ -57,5 +57,5 @@ jobs:
           coverage-files: 'coverage/lcov.info'
           minimum-coverage: 100
           update-comment: false
-          working-directory: './foundry'
+          working-directory: 'foundry'
         id: coverage

@@ -3,7 +3,7 @@ name: Foundry
 on:
   workflow_dispatch:
   push:
-    branches: [main, develop, feat_unit_tests_full_coverage]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
 

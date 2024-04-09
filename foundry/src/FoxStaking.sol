@@ -33,6 +33,7 @@ contract FoxStaking is
     event Withdraw(address indexed account, uint256 amount);
     event SetRuneAddress(
         address indexed account,
+        string indexed oldRuneAddress,
         string indexed newRuneAddress
     );
 
@@ -141,8 +142,9 @@ contract FoxStaking is
 
     function setRuneAddress(string memory runeAddress) external {
         StakingInfo storage info = stakingInfo[msg.sender];
+        string memory oldRuneAddress = info.runeAddress;
         info.runeAddress = runeAddress;
-        emit SetRuneAddress(msg.sender, runeAddress);
+        emit SetRuneAddress(msg.sender, oldRuneAddress, runeAddress);
     }
 
     function balanceOf(address account) external view returns (uint256 total) {

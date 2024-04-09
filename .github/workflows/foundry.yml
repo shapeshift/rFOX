@@ -41,7 +41,7 @@ jobs:
         uses: hrishikesh-kadam/setup-lcov@v1
 
       - name: Report code coverage and check threshold
-        uses: zgosalvez/github-actions-report-lcov@v3
+        uses: zgosalvez/github-actions-report-lcov@v4.1.3
         with:
           coverage-files: 'foundry/lcov.info'
           minimum-coverage: 100

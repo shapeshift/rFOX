@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "../src/FoxStaking.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MockFOXToken is ERC20 {
     constructor() ERC20("Mock FOX Token", "FOX") {
@@ -14,6 +15,37 @@ contract MockFOXToken is ERC20 {
 
     function makeItRain(address to, uint256 amount) public {
         _transfer(address(this), to, amount);
+    }
+}
+
+contract FOXStakingTestOwnership is Test {
+    FoxStaking public foxStaking;
+    MockFOXToken public foxToken;
+    address nonOwner = 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045;
+
+    function setUp() public {
+        foxToken = new MockFOXToken();
+        foxStaking = new FoxStaking(address(foxToken));
+    }
+
+    function testOwnerCanUpdateCooldownPeriod() public {
+        uint256 newCooldownPeriod = 14 days;
+        
+        foxStaking.setCooldownPeriod(newCooldownPeriod);
+        assertEq(foxStaking.cooldownPeriod(), newCooldownPeriod, "setCooldownPeriod should update the cooldown period when called by the owner");
+    }
+
+    function testNonOwnerCannotUpdateCooldownPeriod() public {
+        uint256 newCooldownPeriod = 7 days;
+
+        vm.prank(nonOwner);
+        vm.expectRevert(
+          abi.encodeWithSelector(
+            Ownable.OwnableUnauthorizedAccount.selector,
+            address(nonOwner)
+          )
+        );
+        foxStaking.setCooldownPeriod(newCooldownPeriod);
     }
 }
 
@@ -58,7 +90,7 @@ contract FOXStakingTestStaking is Test {
     }
 }
 
-contract FOXStakingTestunstake is Test {
+contract FOXStakingTestUnstake is Test {
     FoxStaking public foxStaking;
     MockFOXToken public foxToken;
     address user = address(0xBEEF);

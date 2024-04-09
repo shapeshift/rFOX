@@ -2,14 +2,20 @@
 pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 import {console} from "forge-std/Script.sol";
 
-contract FoxStaking is IFoxStaking {
+contract FoxStaking is 
+  IFoxStaking, 
+  Ownable(msg.sender)  // Deployer is the owner
+  {
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
-    // TODO(gomes): we may want to use different heuristics than days here, but solidity supports them so why not?
-    uint256 public constant COOLDOWN_PERIOD = 28 days;
+
+    uint256 public cooldownPeriod = 28 days;
+
+    event UpdateCooldownPeriod(uint256 newCooldownPeriod);
 
     event Stake(address indexed account, uint256 amount, string indexed runeAddress);
     event Unstake(address indexed account, uint256 amount);
@@ -18,6 +24,11 @@ contract FoxStaking is IFoxStaking {
 
     constructor(address foxTokenAddress) {
         foxToken = IERC20(foxTokenAddress);
+    }
+
+    function setCooldownPeriod(uint256 _cooldownPeriod) external onlyOwner {
+        cooldownPeriod = _cooldownPeriod;
+        emit UpdateCooldownPeriod(_cooldownPeriod);
     }
 
     function stake(uint256 amount, string memory runeAddress) external {
@@ -50,7 +61,7 @@ contract FoxStaking is IFoxStaking {
         info.unstakingBalance += amount;
 
         // Set or update the cooldown period
-        info.cooldownExpiry = block.timestamp + COOLDOWN_PERIOD;
+        info.cooldownExpiry = block.timestamp + cooldownPeriod;
 
         emit Unstake(msg.sender, amount);
     }

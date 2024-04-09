@@ -15,11 +15,8 @@ defaults:
     working-directory: foundry
 
 jobs:
-  check:
-    strategy:
-      fail-fast: true
-
-    name: Foundry project
+  test-and-coverage:
+    name: Run tests and generate coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,17 +26,23 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.2.0
 
-      - name: Run Forge build
-        run: |
-          forge --version
-          forge build --sizes
-        id: build
-
-      - name: Run Forge tests
+      - name: Run Forge tests and generate LCOV coverage report
         run: |
           forge test -vvv
-        id: test
-      - name: Generate coverage report
-        run: |
-          forge coverage --report summary
-        id: coverage
+          forge coverage --report lcov
+
+  coverage_report:
+    name: Enforce 100% coverage
+    needs: test-and-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
+
+      - name: Report code coverage and check threshold
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: 'lcov.info'
+          minimum-coverage: 100
+          update-comment: false
+      id: coverage

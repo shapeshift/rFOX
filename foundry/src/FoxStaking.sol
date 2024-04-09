@@ -37,11 +37,12 @@ contract FoxStaking is IFoxStaking {
     }
 
     function requestWithdraw(uint256 amount) external {
+        uint256 stakedBalance = stakingBalances[msg.sender];
         require(amount > 0, "Cannot withdraw 0");
 
         // User can only request withdraw for their staking balance, not more, and not their unstaking balance
         require(
-            amount <= stakingBalances[msg.sender],
+            amount <= stakedBalance,
             "Withdraw amount exceeds staked balance"
         );
 

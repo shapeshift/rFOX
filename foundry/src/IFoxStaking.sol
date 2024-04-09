@@ -9,9 +9,32 @@ struct StakingInfo {
 }
 
 
-/// @title WIP high-level interface for FOX token staking contract
 /// @notice This interface outlines the functions for staking FOX tokens, managing RUNE addresses for rewards, and claiming 'em.
 interface IFoxStaking {
+    /// @notice Pauses deposits
+    function pauseStaking() external;
+
+    /// @notice Unpauses deposits
+    function unpauseStaking() external;
+
+    /// @notice Pauses withdrawals
+    function pauseWithdrawals() external;
+
+    /// @notice Unpauses withdrawals
+    function unpauseWithdrawals() external;
+
+    /// @notice Pauses unstaking
+    function pauseUnstaking() external;
+
+    /// @notice Unpauses unstaking
+    function unpauseUnstaking() external;
+
+    // @notice Sets contract-level paused state
+    function pause() external;
+
+    /// @notice Sets contract-level unpaused state
+    function unpause() external;
+
     /// @notice Allows a user to stake a specified amount of FOX tokens and assign a RUNE address for rewards - which can be changed later on.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     /// @param amount The amount of FOX tokens to be staked.

@@ -6,6 +6,7 @@ import "../src/FoxStaking.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract MockFOXToken is ERC20 {
     constructor() ERC20("Mock FOX Token", "FOX") {
@@ -56,6 +57,26 @@ contract FOXStakingTestStaking is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         foxStaking = new FoxStaking(address(foxToken));
+    }
+
+    function testCannotStakeWhenStakingPaused() public {
+      foxStaking.pauseStaking();
+
+      address user = address(0xBABE);
+      vm.startPrank(user);
+      vm.expectRevert("Staking is paused");
+      foxStaking.stake(1e18, "runeAddress");
+      vm.stopPrank();
+    }
+
+    function testCannotStakeWhenContractPaused() public {
+      foxStaking.pause();
+
+      address user = address(0xBABE);
+      vm.startPrank(user);
+      vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
+      foxStaking.stake(1e18, "runeAddress");
+      vm.stopPrank();
     }
 
     function testStaking() public {
@@ -112,6 +133,27 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.stake(amount, runeAddress);
 
         vm.stopPrank();
+    }
+
+    function testCannotUnstakeWhenUnstakingPaused() public {
+      foxStaking.pauseUnstaking();
+
+      vm.startPrank(user);
+      vm.expectRevert("Unstaking is paused");
+      foxStaking.unstake(amount);
+      vm.stopPrank();
+    }
+
+    function testCannotUnstakeWhenContractPaused() public {
+      foxStaking.pause();
+
+      vm.startPrank(user);
+      vm.expectRevert(abi.encodeWithSelector(
+            Pausable.EnforcedPause.selector
+          )
+      );
+      foxStaking.unstake(amount);
+      vm.stopPrank();
     }
 
     function testunstake_cannotRequestZero() public {
@@ -279,6 +321,24 @@ contract FOXStakingTestWithdraw is Test {
         foxStaking.stake(amount, runeAddress);
 
         vm.stopPrank();
+    }
+
+    function testCannotWithdrawWhenWithdrawalsPaused() public {
+      foxStaking.pauseWithdrawals();
+
+      vm.startPrank(user);
+      vm.expectRevert("Withdrawals are paused"); // Make sure this matches the actual revert message used in your contract
+      foxStaking.withdraw();
+      vm.stopPrank();
+    }
+
+    function testCannotWithdrawWhenContractPaused() public {
+      foxStaking.pause();
+
+      vm.startPrank(user);
+      vm.expectRevert(abi.encodeWithSelector(Pausable.EnforcedPause.selector));
+      foxStaking.withdraw();
+      vm.stopPrank();
     }
 
     function testWithdraw_cannotWithdrawBeforeCooldown() public {

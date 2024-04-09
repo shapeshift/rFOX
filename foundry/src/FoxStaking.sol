@@ -3,27 +3,87 @@ pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 import {console} from "forge-std/Script.sol";
 
-contract FoxStaking is 
-  IFoxStaking, 
-  Ownable(msg.sender)  // Deployer is the owner
-  {
+contract FoxStaking is
+    IFoxStaking,
+    Ownable(msg.sender), // Deployer is the owner
+    Pausable
+{
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
+
+    bool public stakingPaused = false;
+    bool public withdrawalsPaused = false;
+    bool public unstakingPaused = false;
 
     uint256 public cooldownPeriod = 28 days;
 
     event UpdateCooldownPeriod(uint256 newCooldownPeriod);
 
-    event Stake(address indexed account, uint256 amount, string indexed runeAddress);
+    event Stake(
+        address indexed account,
+        uint256 amount,
+        string indexed runeAddress
+    );
     event Unstake(address indexed account, uint256 amount);
     event Withdraw(address indexed account, uint256 amount);
-    event SetRuneAddress(address indexed account, string indexed newRuneAddress);
+    event SetRuneAddress(
+        address indexed account,
+        string indexed newRuneAddress
+    );
 
     constructor(address foxTokenAddress) {
         foxToken = IERC20(foxTokenAddress);
+    }
+
+    function pauseStaking() external onlyOwner {
+        stakingPaused = true;
+    }
+
+    function unpauseStaking() external onlyOwner {
+        stakingPaused = false;
+    }
+
+    function pauseWithdrawals() external onlyOwner {
+        withdrawalsPaused = true;
+    }
+
+    function unpauseWithdrawals() external onlyOwner {
+        withdrawalsPaused = false;
+    }
+
+    function pauseUnstaking() external onlyOwner {
+        unstakingPaused = true;
+    }
+
+    function unpauseUnstaking() external onlyOwner {
+        unstakingPaused = false;
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    modifier whenStakingNotPaused() {
+        require(!stakingPaused, "Staking is paused");
+        _;
+    }
+
+    modifier whenUnstakingNotPaused() {
+        require(!unstakingPaused, "Unstaking is paused");
+        _;
+    }
+
+    modifier whenWithdrawalsNotPaused() {
+        require(!withdrawalsPaused, "Withdrawals are paused");
+        _;
     }
 
     function setCooldownPeriod(uint256 newCooldownPeriod) external onlyOwner {
@@ -31,7 +91,10 @@ contract FoxStaking is
         emit UpdateCooldownPeriod(newCooldownPeriod);
     }
 
-    function stake(uint256 amount, string memory runeAddress) external {
+    function stake(
+        uint256 amount,
+        string memory runeAddress
+    ) external whenNotPaused whenStakingNotPaused {
         require(bytes(runeAddress).length > 0, "Rune address cannot be empty");
         require(amount > 0, "FOX amount to stake must be greater than 0");
         // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
@@ -46,7 +109,9 @@ contract FoxStaking is
         emit Stake(msg.sender, amount, runeAddress);
     }
 
-    function unstake(uint256 amount) external {
+    function unstake(
+        uint256 amount
+    ) external whenNotPaused whenUnstakingNotPaused {
         require(amount > 0, "Cannot unstake 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 
@@ -66,17 +131,17 @@ contract FoxStaking is
         emit Unstake(msg.sender, amount);
     }
 
-    function withdraw() external {
+    function withdraw() external whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
 
         require(info.unstakingBalance > 0, "Cannot withdraw 0");
-        require(
-            block.timestamp >= info.cooldownExpiry,
-            "Not cooled down yet"
-        );
+        require(block.timestamp >= info.cooldownExpiry, "Not cooled down yet");
         uint256 withdrawAmount = info.unstakingBalance;
         info.unstakingBalance = 0;
-        require(foxToken.transfer(msg.sender, withdrawAmount), "Transfer failed");
+        require(
+            foxToken.transfer(msg.sender, withdrawAmount),
+            "Transfer failed"
+        );
         emit Withdraw(msg.sender, withdrawAmount);
     }
 

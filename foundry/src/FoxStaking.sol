@@ -5,12 +5,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract FoxStaking is
     IFoxStaking,
     Ownable(msg.sender), // Deployer is the owner
     Pausable
 {
+    using SafeERC20 for IERC20;
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
 
@@ -96,11 +98,7 @@ contract FoxStaking is
     ) external whenNotPaused whenStakingNotPaused {
         require(bytes(runeAddress).length > 0, "Rune address cannot be empty");
         require(amount > 0, "FOX amount to stake must be greater than 0");
-        // Transfer fundus from msg.sender to contract assuming allowance has been set - here goes nothing
-        require(
-            foxToken.transferFrom(msg.sender, address(this), amount),
-            "Transfer failed"
-        );
+        foxToken.safeTransferFrom(msg.sender, address(this), amount);
 
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
@@ -137,10 +135,7 @@ contract FoxStaking is
         require(block.timestamp >= info.cooldownExpiry, "Not cooled down yet");
         uint256 withdrawAmount = info.unstakingBalance;
         info.unstakingBalance = 0;
-        require(
-            foxToken.transfer(msg.sender, withdrawAmount),
-            "Transfer failed"
-        );
+        foxToken.safeTransfer(msg.sender, withdrawAmount);
         emit Withdraw(msg.sender, withdrawAmount);
     }
 

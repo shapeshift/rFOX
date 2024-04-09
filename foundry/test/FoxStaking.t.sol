@@ -41,6 +41,17 @@ contract FOXStakingTestRuneAddress is Test {
 
     vm.stopPrank();
   }
+
+  function cannotStakeWithEmptyRuneAddress() public {
+    vm.startPrank(user);
+
+    string memory emptyRuneAddress = "";
+
+    vm.expectRevert("Rune address cannot be empty");
+    foxStaking.stake(1e18, emptyRuneAddress);
+
+    vm.stopPrank();
+  }
 }
 
 contract FOXStakingTestOwnership is Test {
@@ -177,6 +188,56 @@ contract FOXStakingTestStaking is Test {
       vm.assertEq(unstakingBalance_after, 0);
     }
 
+    function testStake_cannotStakeZero() public {
+        address user = address(0xD00D);
+        string memory runeAddress = "runeAddress";
+
+        vm.startPrank(user);
+
+        // Check user staking balances
+        (uint256 stakingBalance, uint256 unstakingBalance, , ) = foxStaking.stakingInfo(user);
+        vm.assertEq(stakingBalance + unstakingBalance, 0);
+        vm.assertEq(stakingBalance, 0);
+        vm.assertEq(unstakingBalance, 0);
+
+        // Try to stake 0
+        vm.expectRevert("FOX amount to stake must be greater than 0");
+        foxStaking.stake(0, runeAddress);
+
+        // Check user staking balances are unchanged
+        (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
+        vm.assertEq(stakingBalance_after + unstakingBalance_after, 0);
+        vm.assertEq(stakingBalance_after, 0);
+        vm.assertEq(unstakingBalance_after, 0);
+
+        vm.stopPrank();
+    }
+
+    function testStake_cannotStakeWithEmptyRuneAddress() public {
+        address user = address(0xD00D);
+
+        vm.startPrank(user);
+
+        // Check user staking balances
+        (uint256 stakingBalance, uint256 unstakingBalance, , ) = foxStaking.stakingInfo(user);
+        vm.assertEq(stakingBalance + unstakingBalance, 0);
+        vm.assertEq(stakingBalance, 0);
+        vm.assertEq(unstakingBalance, 0);
+
+        // Try to stake with empty rune address
+        vm.expectRevert("Rune address cannot be empty");
+        foxStaking.stake(1e18, "");
+
+        // Check user staking balances are unchanged
+        (uint256 stakingBalance_after, uint256 unstakingBalance_after, , ) = foxStaking.stakingInfo(user);
+        vm.assertEq(stakingBalance_after + unstakingBalance_after, 0);
+        vm.assertEq(stakingBalance_after, 0);
+        vm.assertEq(unstakingBalance_after, 0);
+
+        vm.stopPrank();
+    }
+
+    // "e2e" staking test for multiple users
     function testStaking() public {
         address[] memory users = new address[](3);
         users[0] = address(0xBABE);

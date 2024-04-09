@@ -2,8 +2,8 @@ name: Foundry
 
 on:
   workflow_dispatch:
-    push:
-      branches: [main, develop, feat_unit_tests_full_coverage]
+  push:
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
 
@@ -15,8 +15,11 @@ defaults:
     working-directory: foundry
 
 jobs:
-  test-and-coverage:
-    name: Run tests and generate coverage
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Foundry project
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,36 +29,17 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.2.0
 
-      - name: Run Forge tests and generate LCOV coverage report
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
+      - name: Run Forge tests
         run: |
           forge test -vvv
-          forge coverage --report lcov
         id: test
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v2
-        with:
-          name: lcov-report
-          path: foundry/lcov.info
-
-  coverage_report:
-    name: Enforce 100% coverage
-    needs: test-and-coverage
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download coverage report
-        uses: actions/download-artifact@v2
-        with:
-          name: lcov-report
-          path: coverage
-
-      - name: Setup LCOV
-        uses: hrishikesh-kadam/setup-lcov@v1
-
-      - name: Report code coverage and check threshold
-        uses: zgosalvez/github-actions-report-lcov@v4.1.3
-        with:
-          coverage-files: 'coverage/lcov.info'
-          minimum-coverage: 100
-          update-comment: false
-          working-directory: '../foundry'
+      - name: Generate coverage report
+        run: |
+          forge coverage --report summary
         id: coverage

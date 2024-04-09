@@ -42,6 +42,17 @@ contract FOXStakingTestRuneAddress is Test {
     vm.stopPrank();
   }
 
+  function testCannotSetInvalidLengthRuneAddress() public {
+    vm.startPrank(user);
+
+    string memory invalidLengthRuneAddress = "thor1234";
+
+    vm.expectRevert("Rune address must be 43 characters");
+    foxStaking.setRuneAddress(invalidLengthRuneAddress);
+
+    vm.stopPrank();
+  }
+
   function cannotStakeWithEmptyRuneAddress() public {
     vm.startPrank(user);
 

@@ -43,7 +43,7 @@ jobs:
       - name: Report code coverage and check threshold
         uses: zgosalvez/github-actions-report-lcov@v3
         with:
-          coverage-files: 'lcov.info'
+          coverage-files: 'foundry/lcov.info'
           minimum-coverage: 100
           update-comment: false
         id: coverage

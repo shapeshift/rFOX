@@ -7,11 +7,11 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract FoxStaking is 
-  IFoxStaking, 
-  Ownable(msg.sender), // Deployer is the owner
-  Pausable
-  {
+contract FoxStaking is
+    IFoxStaking,
+    Ownable(msg.sender), // Deployer is the owner
+    Pausable
+{
     using SafeERC20 for IERC20;
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
@@ -24,29 +24,37 @@ contract FoxStaking is
 
     event UpdateCooldownPeriod(uint256 newCooldownPeriod);
 
-    event Stake(address indexed account, uint256 amount, string indexed runeAddress);
+    event Stake(
+        address indexed account,
+        uint256 amount,
+        string indexed runeAddress
+    );
     event Unstake(address indexed account, uint256 amount);
     event Withdraw(address indexed account, uint256 amount);
-    event SetRuneAddress(address indexed account, string indexed oldRuneAddress, string indexed newRuneAddress);
+    event SetRuneAddress(
+        address indexed account,
+        string indexed oldRuneAddress,
+        string indexed newRuneAddress
+    );
 
     constructor(address foxTokenAddress) {
         foxToken = IERC20(foxTokenAddress);
     }
 
     function pauseStaking() external onlyOwner {
-      stakingPaused = true;
+        stakingPaused = true;
     }
 
     function unpauseStaking() external onlyOwner {
-      stakingPaused = false;
+        stakingPaused = false;
     }
 
     function pauseWithdrawals() external onlyOwner {
-      withdrawalsPaused = true;
+        withdrawalsPaused = true;
     }
 
     function unpauseWithdrawals() external onlyOwner {
-      withdrawalsPaused = false;
+        withdrawalsPaused = false;
     }
 
     function pauseUnstaking() external onlyOwner {
@@ -66,18 +74,18 @@ contract FoxStaking is
     }
 
     modifier whenStakingNotPaused() {
-      require(!stakingPaused, "Staking is paused");
-      _;
+        require(!stakingPaused, "Staking is paused");
+        _;
     }
 
     modifier whenUnstakingNotPaused() {
-      require(!unstakingPaused, "Unstaking is paused");
-      _;
+        require(!unstakingPaused, "Unstaking is paused");
+        _;
     }
 
     modifier whenWithdrawalsNotPaused() {
-      require(!withdrawalsPaused, "Withdrawals are paused");
-      _;
+        require(!withdrawalsPaused, "Withdrawals are paused");
+        _;
     }
 
     function setCooldownPeriod(uint256 newCooldownPeriod) external onlyOwner {
@@ -85,8 +93,14 @@ contract FoxStaking is
         emit UpdateCooldownPeriod(newCooldownPeriod);
     }
 
-    function stake(uint256 amount, string memory runeAddress) external whenNotPaused whenStakingNotPaused {
-        require(bytes(runeAddress).length == 43, "Rune address must be 43 characters");
+    function stake(
+        uint256 amount,
+        string memory runeAddress
+    ) external whenNotPaused whenStakingNotPaused {
+        require(
+            bytes(runeAddress).length == 43,
+            "Rune address must be 43 characters"
+        );
         require(amount > 0, "FOX amount to stake must be greater than 0");
         foxToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -96,7 +110,9 @@ contract FoxStaking is
         emit Stake(msg.sender, amount, runeAddress);
     }
 
-    function unstake(uint256 amount) external whenNotPaused whenUnstakingNotPaused {
+    function unstake(
+        uint256 amount
+    ) external whenNotPaused whenUnstakingNotPaused {
         require(amount > 0, "Cannot unstake 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 
@@ -120,10 +136,7 @@ contract FoxStaking is
         StakingInfo storage info = stakingInfo[msg.sender];
 
         require(info.unstakingBalance > 0, "Cannot withdraw 0");
-        require(
-            block.timestamp >= info.cooldownExpiry,
-            "Not cooled down yet"
-        );
+        require(block.timestamp >= info.cooldownExpiry, "Not cooled down yet");
         uint256 withdrawAmount = info.unstakingBalance;
         info.unstakingBalance = 0;
         foxToken.safeTransfer(msg.sender, withdrawAmount);
@@ -131,7 +144,10 @@ contract FoxStaking is
     }
 
     function setRuneAddress(string memory runeAddress) external {
-        require(bytes(runeAddress).length == 43, "Rune address must be 43 characters");
+        require(
+            bytes(runeAddress).length == 43,
+            "Rune address must be 43 characters"
+        );
         StakingInfo storage info = stakingInfo[msg.sender];
         string memory oldRuneAddress = info.runeAddress;
         info.runeAddress = runeAddress;

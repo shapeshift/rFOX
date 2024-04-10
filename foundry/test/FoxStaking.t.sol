@@ -255,7 +255,11 @@ contract FOXStakingTestStaking is Test {
 
     // "e2e" staking test for multiple users
     function testStaking() public {
-        string memory baseRuneAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncs"; // 42 chars - so we can append another to make it 43
+        string[3] memory runeAddresses = [
+          "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncs0",
+          "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncs1",
+          "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncs2"
+        ];
         address[] memory users = new address[](3);
         users[0] = address(0xBABE);
         users[1] = address(0xC0DE);
@@ -268,9 +272,6 @@ contract FOXStakingTestStaking is Test {
 
         // Simulate each user staking FOX tokens
         for (uint256 i = 0; i < users.length; i++) {
-            // Pseudo-random RUNE addy - takes the base one above and changes the last char each iteration
-            string memory indexChar = Strings.toString(i % 10);
-            string memory runeAddress = string(abi.encodePacked(baseRuneAddress, indexChar));
             // Free FOX tokens for each user
             foxToken.makeItRain(users[i], amounts[i]);
             // https://book.getfoundry.sh/cheatcodes/start-prank
@@ -278,7 +279,7 @@ contract FOXStakingTestStaking is Test {
             // Approve FoxStaking contract to spend user's FOX tokens
             foxToken.approve(address(foxStaking), amounts[i]);
             // Stake tokens
-            foxStaking.stake(amounts[i], runeAddress);
+            foxStaking.stake(amounts[i], runeAddresses[i]);
             vm.stopPrank();
 
             // Verify each user's staked amount

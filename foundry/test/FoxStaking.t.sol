@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 contract MockFOXToken is ERC20 {
     constructor() ERC20("Mock FOX Token", "FOX") {
@@ -88,8 +89,11 @@ contract FOXStakingTestOwnership is Test {
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        foxStaking = new FoxStaking(address(foxToken));
-        foxStaking.initialize();
+        address foxStakingProxy = Upgrades.deployUUPSProxy(
+          "FoxStaking.sol",
+          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+        );
+        foxStaking = FoxStaking(foxStakingProxy);
     }
 
     function testOwnerCanUpdateCooldownPeriod() public {
@@ -123,8 +127,11 @@ contract FOXStakingTestStaking is Test {
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        foxStaking = new FoxStaking(address(foxToken));
-        foxStaking.initialize();
+        address foxStakingProxy = Upgrades.deployUUPSProxy(
+          "FoxStaking.sol",
+          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+        );
+        foxStaking = FoxStaking(foxStakingProxy);
     }
 
     function testCannotStakeWhenStakingPaused() public {
@@ -347,8 +354,11 @@ contract FOXStakingTestUnstake is Test {
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        foxStaking = new FoxStaking(address(foxToken));
-        foxStaking.initialize();
+        address foxStakingProxy = Upgrades.deployUUPSProxy(
+          "FoxStaking.sol",
+          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+        );
+        foxStaking = FoxStaking(foxStakingProxy);
 
         // Free FOX tokens for user
         foxToken.makeItRain(user, amount);
@@ -629,8 +639,11 @@ contract FOXStakingTestWithdraw is Test {
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        foxStaking = new FoxStaking(address(foxToken));
-        foxStaking.initialize();
+        address foxStakingProxy = Upgrades.deployUUPSProxy(
+          "FoxStaking.sol",
+          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+        );
+        foxStaking = FoxStaking(foxStakingProxy);
 
         // Free FOX tokens for user
         foxToken.makeItRain(user, amount);

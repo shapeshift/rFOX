@@ -65,17 +65,17 @@ contract FoxStaking is
         _unpause();
     }
 
-    modifier whenStakingUnpaused() {
+    modifier whenStakingNotPaused() {
       require(!stakingPaused, "Staking is paused");
       _;
     }
 
-    modifier whenUnstakingUnpaused() {
+    modifier whenUnstakingNotPaused() {
       require(!unstakingPaused, "Unstaking is paused");
       _;
     }
 
-    modifier whenWithdrawalsUnpaused() {
+    modifier whenWithdrawalsNotPaused() {
       require(!withdrawalsPaused, "Withdrawals are paused");
       _;
     }
@@ -85,7 +85,7 @@ contract FoxStaking is
         emit UpdateCooldownPeriod(newCooldownPeriod);
     }
 
-    function stake(uint256 amount, string memory runeAddress) external whenNotPaused whenStakingUnpaused {
+    function stake(uint256 amount, string memory runeAddress) external whenNotPaused whenStakingNotPaused {
         require(bytes(runeAddress).length == 43, "Rune address must be 43 characters");
         require(amount > 0, "FOX amount to stake must be greater than 0");
         foxToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -96,7 +96,7 @@ contract FoxStaking is
         emit Stake(msg.sender, amount, runeAddress);
     }
 
-    function unstake(uint256 amount) external whenNotPaused whenUnstakingUnpaused {
+    function unstake(uint256 amount) external whenNotPaused whenUnstakingNotPaused {
         require(amount > 0, "Cannot unstake 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 
@@ -116,7 +116,7 @@ contract FoxStaking is
         emit Unstake(msg.sender, amount);
     }
 
-    function withdraw() external whenNotPaused whenWithdrawalsUnpaused {
+    function withdraw() external whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
 
         require(info.unstakingBalance > 0, "Cannot withdraw 0");

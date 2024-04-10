@@ -2,12 +2,11 @@
 pragma solidity ^0.8.25;
 
 struct StakingInfo {
-  uint256 stakingBalance;
-  uint256 unstakingBalance;
-  uint256 cooldownExpiry;
-  string runeAddress;
+    uint256 stakingBalance;
+    uint256 unstakingBalance;
+    uint256 cooldownExpiry;
+    string runeAddress;
 }
-
 
 /// @notice This interface outlines the functions for staking FOX tokens, managing RUNE addresses for rewards, and claiming 'em.
 interface IFoxStaking {
@@ -59,7 +58,5 @@ interface IFoxStaking {
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
     /// @param account The address we're getting the staked FOX balance for.
     /// @return total The total amount of FOX tokens held.
-    function balanceOf(
-        address account
-    ) external view returns (uint256 total);
+    function balanceOf(address account) external view returns (uint256 total);
 }

@@ -318,19 +318,6 @@ contract FOXStakingTestStaking is Test {
 
         // Simulate each user staking FOX tokens
         for (uint256 i = 0; i < users.length; i++) {
-<<<<<<< HEAD
-<<<<<<< HEAD
-            // Unique mock address per user
-            string memory runeAddress = string(
-                abi.encodePacked("runeAddress", Strings.toString(i))
-            );
-=======
-            // Pseudo-random RUNE addy - takes the base one above and changes the last char each iteration
-            string memory indexChar = Strings.toString(i % 10);
-            string memory runeAddress = string(abi.encodePacked(baseRuneAddress, indexChar));
->>>>>>> 6f2012e (feat: assume 43-bytes-length RUNE addy)
-=======
->>>>>>> e18e30a (feat: static list of predefined rune testing addresses)
             // Free FOX tokens for each user
             foxToken.makeItRain(users[i], amounts[i]);
             // https://book.getfoundry.sh/cheatcodes/start-prank

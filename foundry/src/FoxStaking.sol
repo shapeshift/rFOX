@@ -96,7 +96,7 @@ contract FoxStaking is
     function stake(
         uint256 amount,
         string memory runeAddress
-    ) external whenNotPaused whenStakingUnpaused {
+    ) external whenNotPaused whenStakingNotPaused {
         require(
             bytes(runeAddress).length == 43,
             "Rune address must be 43 characters"

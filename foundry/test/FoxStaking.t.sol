@@ -27,7 +27,11 @@ contract FOXStakingTestRuneAddress is Test {
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        foxStaking = new FoxStaking(address(foxToken));
+        address foxStakingProxy = Upgrades.deployUUPSProxy(
+            "FoxStaking.sol",
+            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+        );
+        foxStaking = FoxStaking(foxStakingProxy);
     }
 
     function testCanSetRuneAddress() public {
@@ -90,8 +94,8 @@ contract FOXStakingTestOwnership is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-          "FoxStaking.sol",
-          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStaking.sol",
+            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
         );
         foxStaking = FoxStaking(foxStakingProxy);
     }
@@ -128,8 +132,8 @@ contract FOXStakingTestStaking is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-          "FoxStaking.sol",
-          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStaking.sol",
+            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
         );
         foxStaking = FoxStaking(foxStakingProxy);
     }
@@ -355,8 +359,8 @@ contract FOXStakingTestUnstake is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-          "FoxStaking.sol",
-          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStaking.sol",
+            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
         );
         foxStaking = FoxStaking(foxStakingProxy);
 
@@ -640,8 +644,8 @@ contract FOXStakingTestWithdraw is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-          "FoxStaking.sol",
-          abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStaking.sol",
+            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
         );
         foxStaking = FoxStaking(foxStakingProxy);
 

@@ -2,17 +2,18 @@
 pragma solidity ^0.8.25;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 
 contract FoxStaking is
-    IFoxStaking,
-    Ownable(msg.sender), // Deployer is the owner
-    Pausable,
-    Initializable
+    Initializable,
+    PausableUpgradeable,
+    UUPSUpgradeable,
+    OwnableUpgradeable
 {
     using SafeERC20 for IERC20;
     IERC20 public foxToken;
@@ -36,16 +37,25 @@ contract FoxStaking is
         string indexed newRuneAddress
     );
 
-    function initialize() external initializer {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address foxTokenAddress) external initializer {
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
+        __Pausable_init();
+        foxToken = IERC20(foxTokenAddress);
         stakingPaused = false;
         withdrawalsPaused = false;
         unstakingPaused = false;
         cooldownPeriod = 28 days;
     }
 
-    constructor(address foxTokenAddress) {
-        foxToken = IERC20(foxTokenAddress);
-    }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     function pauseStaking() external onlyOwner {
         stakingPaused = true;

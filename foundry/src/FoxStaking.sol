@@ -16,6 +16,7 @@ contract FoxStaking is
     OwnableUpgradeable
 {
     using SafeERC20 for IERC20;
+    uint256 public version;
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
     bool public stakingPaused;
@@ -46,6 +47,7 @@ contract FoxStaking is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         __Pausable_init();
+        version = 1;
         foxToken = IERC20(foxTokenAddress);
         stakingPaused = false;
         withdrawalsPaused = false;

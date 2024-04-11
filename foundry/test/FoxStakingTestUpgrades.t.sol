@@ -133,7 +133,7 @@ contract FoxStakingTestUpgrades is Test {
             )
         );
 
-        // Perform the upgrade, but as a non-owner
+        // Attempt to perform the upgrade, but as a non-owner
         upgradeHelper.doUpgrade(nonOwner, foxStakingProxy);
     }
 }

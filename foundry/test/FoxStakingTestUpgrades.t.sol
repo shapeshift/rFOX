@@ -61,14 +61,14 @@ contract UpgradeHelper is Test {
         vm.startPrank(prankOwner);
         Upgrades.upgradeProxy(
             proxy,
-            "FOXStakingTestUpgrades.t.sol:MockFoxStakingV2",
+            "FoxStakingTestUpgrades.t.sol:MockFoxStakingV2",
             abi.encodeCall(MockFoxStakingV2.initialize, ())
         );
         vm.stopPrank;
     }
 }
 
-contract FOXStakingTestUpgrades is Test {
+contract FoxStakingTestUpgrades is Test {
     address public owner = address(0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045);
     address public foxStakingProxy;
     FoxStakingV1 public foxStakingV1;

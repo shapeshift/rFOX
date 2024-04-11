@@ -7,7 +7,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
+import {StakingInfo} from "./StakingInfo.sol";
 
 contract FoxStakingV1 is
     Initializable,
@@ -61,34 +61,42 @@ contract FoxStakingV1 is
         return _getInitializedVersion();
     }
 
+    /// @notice Pauses deposits
     function pauseStaking() external onlyOwner {
         stakingPaused = true;
     }
 
+    /// @notice Unpauses deposits
     function unpauseStaking() external onlyOwner {
         stakingPaused = false;
     }
 
+    /// @notice Pauses withdrawals
     function pauseWithdrawals() external onlyOwner {
         withdrawalsPaused = true;
     }
 
+    /// @notice Unpauses withdrawals
     function unpauseWithdrawals() external onlyOwner {
         withdrawalsPaused = false;
     }
 
+    /// @notice Pauses unstaking
     function pauseUnstaking() external onlyOwner {
         unstakingPaused = true;
     }
 
+    /// @notice Unpauses unstaking
     function unpauseUnstaking() external onlyOwner {
         unstakingPaused = false;
     }
 
+    /// @notice Sets contract-level paused state
     function pause() external onlyOwner {
         _pause();
     }
 
+    /// @notice Sets contract-level unpaused state
     function unpause() external onlyOwner {
         _unpause();
     }
@@ -113,6 +121,10 @@ contract FoxStakingV1 is
         emit UpdateCooldownPeriod(newCooldownPeriod);
     }
 
+    /// @notice Allows a user to stake a specified amount of FOX tokens and assign a RUNE address for rewards - which can be changed later on.
+    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
+    /// @param amount The amount of FOX tokens to be staked.
+    /// @param runeAddress The RUNE address to be associated with the user's staked FOX position.
     function stake(
         uint256 amount,
         string memory runeAddress
@@ -130,6 +142,9 @@ contract FoxStakingV1 is
         emit Stake(msg.sender, amount, runeAddress);
     }
 
+    /// @notice Initiates the unstake process for a specified amount of FOX, starting the cooldown period (28 days).
+    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
+    /// @param amount The amount of FOX tokens to be unstaked.
     function unstake(
         uint256 amount
     ) external whenNotPaused whenUnstakingNotPaused {
@@ -152,6 +167,8 @@ contract FoxStakingV1 is
         emit Unstake(msg.sender, amount);
     }
 
+    /// @notice Withdraws FOX tokens - assuming there's anything to withdraw and unstake cooldown period has completed - else reverts
+    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     function withdraw() external whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
 
@@ -163,6 +180,9 @@ contract FoxStakingV1 is
         emit Withdraw(msg.sender, withdrawAmount);
     }
 
+    /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.
+    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
+    /// @param runeAddress The new RUNE address to be associated with the user's staked FOX position.
     function setRuneAddress(string memory runeAddress) external {
         require(
             bytes(runeAddress).length == 43,
@@ -174,6 +194,10 @@ contract FoxStakingV1 is
         emit SetRuneAddress(msg.sender, oldRuneAddress, runeAddress);
     }
 
+    /// @notice View the staked balance of FOX tokens for a given address.
+    /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
+    /// @param account The address we're getting the staked FOX balance for.
+    /// @return total The total amount of FOX tokens held.
     function balanceOf(address account) external view returns (uint256 total) {
         StakingInfo memory info = stakingInfo[account];
         return info.stakingBalance + info.unstakingBalance;

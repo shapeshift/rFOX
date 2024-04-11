@@ -14,7 +14,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IFoxStaking, StakingInfo} from "../src/IFoxStaking.sol";
+import {StakingInfo} from "../src/StakingInfo.sol";
 
 /// @custom:oz-upgrades-from FoxStakingV1
 contract MockFoxStakingV2 is

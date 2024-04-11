@@ -2,12 +2,12 @@
 pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
-import "../src/FoxStaking.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {FoxStakingV1} from "../src/FoxStakingV1.sol";
 
 contract MockFOXToken is ERC20 {
     constructor() ERC20("Mock FOX Token", "FOX") {
@@ -21,17 +21,17 @@ contract MockFOXToken is ERC20 {
 }
 
 contract FOXStakingTestRuneAddress is Test {
-    FoxStaking public foxStaking;
+    FoxStakingV1 public foxStaking;
     MockFOXToken public foxToken;
     address user = address(0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045);
 
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStaking.sol",
-            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStakingV1.sol",
+            abi.encodeCall(FoxStakingV1.initialize, (address(foxToken)))
         );
-        foxStaking = FoxStaking(foxStakingProxy);
+        foxStaking = FoxStakingV1(foxStakingProxy);
     }
 
     function testCanSetRuneAddress() public {
@@ -87,17 +87,17 @@ contract FOXStakingTestRuneAddress is Test {
 }
 
 contract FOXStakingTestOwnership is Test {
-    FoxStaking public foxStaking;
+    FoxStakingV1 public foxStaking;
     MockFOXToken public foxToken;
     address nonOwner = 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045;
 
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStaking.sol",
-            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStakingV1.sol",
+            abi.encodeCall(FoxStakingV1.initialize, (address(foxToken)))
         );
-        foxStaking = FoxStaking(foxStakingProxy);
+        foxStaking = FoxStakingV1(foxStakingProxy);
     }
 
     function testOwnerCanUpdateCooldownPeriod() public {
@@ -126,16 +126,16 @@ contract FOXStakingTestOwnership is Test {
 }
 
 contract FOXStakingTestStaking is Test {
-    FoxStaking public foxStaking;
+    FoxStakingV1 public foxStaking;
     MockFOXToken public foxToken;
 
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStaking.sol",
-            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStakingV1.sol",
+            abi.encodeCall(FoxStakingV1.initialize, (address(foxToken)))
         );
-        foxStaking = FoxStaking(foxStakingProxy);
+        foxStaking = FoxStakingV1(foxStakingProxy);
     }
 
     function testCannotStakeWhenStakingPaused() public {
@@ -349,7 +349,7 @@ contract FOXStakingTestStaking is Test {
 }
 
 contract FOXStakingTestUnstake is Test {
-    FoxStaking public foxStaking;
+    FoxStakingV1 public foxStaking;
     MockFOXToken public foxToken;
     address user = address(0xBEEF);
     uint256 amount = 1000;
@@ -359,10 +359,10 @@ contract FOXStakingTestUnstake is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStaking.sol",
-            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStakingV1.sol",
+            abi.encodeCall(FoxStakingV1.initialize, (address(foxToken)))
         );
-        foxStaking = FoxStaking(foxStakingProxy);
+        foxStaking = FoxStakingV1(foxStakingProxy);
 
         // Free FOX tokens for user
         foxToken.makeItRain(user, amount);
@@ -634,7 +634,7 @@ contract FOXStakingTestUnstake is Test {
 }
 
 contract FOXStakingTestWithdraw is Test {
-    FoxStaking public foxStaking;
+    FoxStakingV1 public foxStaking;
     MockFOXToken public foxToken;
     address user = address(0xBEEF);
     uint256 amount = 1000;
@@ -644,10 +644,10 @@ contract FOXStakingTestWithdraw is Test {
     function setUp() public {
         foxToken = new MockFOXToken();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStaking.sol",
-            abi.encodeCall(FoxStaking.initialize, (address(foxToken)))
+            "FoxStakingV1.sol",
+            abi.encodeCall(FoxStakingV1.initialize, (address(foxToken)))
         );
-        foxStaking = FoxStaking(foxStakingProxy);
+        foxStaking = FoxStakingV1(foxStakingProxy);
 
         // Free FOX tokens for user
         foxToken.makeItRain(user, amount);

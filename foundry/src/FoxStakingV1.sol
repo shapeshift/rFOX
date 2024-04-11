@@ -9,14 +9,13 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IFoxStaking, StakingInfo} from "./IFoxStaking.sol";
 
-contract FoxStaking is
+contract FoxStakingV1 is
     Initializable,
     PausableUpgradeable,
     UUPSUpgradeable,
     OwnableUpgradeable
 {
     using SafeERC20 for IERC20;
-    uint256 public version;
     IERC20 public foxToken;
     mapping(address => StakingInfo) public stakingInfo;
     bool public stakingPaused;
@@ -47,7 +46,6 @@ contract FoxStaking is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         __Pausable_init();
-        version = 1;
         foxToken = IERC20(foxTokenAddress);
         stakingPaused = false;
         withdrawalsPaused = false;
@@ -58,6 +56,10 @@ contract FoxStaking is
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyOwner {}
+
+    function version() external view returns (uint256) {
+        return _getInitializedVersion();
+    }
 
     function pauseStaking() external onlyOwner {
         stakingPaused = true;

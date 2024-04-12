@@ -152,6 +152,9 @@ contract FoxStakingV1 is
         StakingInfo storage info = stakingInfo[msg.sender];
 
         // User can only unstake (request withdraw) for their staking balance, not more, and not their unstaking balance
+
+        // This doesn't compare timestamps, static analysis is drunk
+        // slither-disable-next-line timestamp
         require(
             amount <= info.stakingBalance,
             "Unstake amount exceeds staked balance"
@@ -172,6 +175,9 @@ contract FoxStakingV1 is
     function withdraw() external whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
         require(info.unstakingBalance > 0, "Cannot withdraw 0");
+        // https://consensys.github.io/smart-contract-best-practices/development-recommendations/solidity-specific/timestamp-dependence/#the-15-second-rule
+        // "If the scale of your time-dependent event can vary by 15 seconds and maintain integrity, it is safe to use a block.timestamp."
+        // slither-disable-next-line timestamp
         require(block.timestamp >= info.cooldownExpiry, "Not cooled down yet");
 
         uint256 withdrawAmount = info.unstakingBalance;

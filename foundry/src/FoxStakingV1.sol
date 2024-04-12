@@ -134,12 +134,12 @@ contract FoxStakingV1 is
             "Rune address must be 43 characters"
         );
         require(amount > 0, "FOX amount to stake must be greater than 0");
-        foxToken.safeTransferFrom(msg.sender, address(this), amount);
 
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
-
         emit Stake(msg.sender, amount, runeAddress);
+
+        foxToken.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /// @notice Initiates the unstake process for a specified amount of FOX, starting the cooldown period (28 days).
@@ -171,13 +171,14 @@ contract FoxStakingV1 is
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
     function withdraw() external whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
-
         require(info.unstakingBalance > 0, "Cannot withdraw 0");
         require(block.timestamp >= info.cooldownExpiry, "Not cooled down yet");
+
         uint256 withdrawAmount = info.unstakingBalance;
         info.unstakingBalance = 0;
-        foxToken.safeTransfer(msg.sender, withdrawAmount);
         emit Withdraw(msg.sender, withdrawAmount);
+
+        foxToken.safeTransfer(msg.sender, withdrawAmount);
     }
 
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.

@@ -5,20 +5,23 @@ import "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {FoxStakingV1} from "../src/FoxStakingV1.sol";
-import {MockFOXToken} from "./MockFOXToken.sol";
+import {MockFOXToken} from "./utils/MockFOXToken.sol";
+import {FoxStakingTestDeployer} from "./utils/FoxStakingTestDeployer.sol";
 
 contract FOXStakingTestOwnership is Test {
+    FoxStakingTestDeployer public deployer;
     FoxStakingV1 public foxStaking;
     MockFOXToken public foxToken;
     address nonOwner = 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045;
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        address foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStakingV1.sol",
-            abi.encodeCall(FoxStakingV1.initialize, (address(foxToken)))
+        deployer = new FoxStakingTestDeployer();
+        address proxyAddress = deployer.deployV1(
+            address(this),
+            address(foxToken)
         );
-        foxStaking = FoxStakingV1(foxStakingProxy);
+        foxStaking = FoxStakingV1(proxyAddress);
     }
 
     function testOwnerCanUpdateCooldownPeriod() public {

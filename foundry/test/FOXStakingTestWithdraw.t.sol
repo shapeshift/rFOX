@@ -3,7 +3,6 @@ pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {FoxStakingV1} from "../src/FoxStakingV1.sol";
 import {MockFOXToken} from "./utils/MockFOXToken.sol";
 import {FoxStakingTestDeployer} from "./utils/FoxStakingTestDeployer.sol";

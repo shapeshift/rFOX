@@ -24,17 +24,13 @@ contract FoxStakingV1 is
     uint256 public cooldownPeriod;
 
     event UpdateCooldownPeriod(uint256 newCooldownPeriod);
-    event Stake(
-        address indexed account,
-        uint256 amount,
-        string indexed runeAddress
-    );
-    event Unstake(address indexed account, uint256 amount);
-    event Withdraw(address indexed account, uint256 amount);
+    event Stake(address account, uint256 amount, string runeAddress);
+    event Unstake(address account, uint256 amount);
+    event Withdraw(address account, uint256 amount);
     event SetRuneAddress(
-        address indexed account,
-        string indexed oldRuneAddress,
-        string indexed newRuneAddress
+        address account,
+        string oldRuneAddress,
+        string newRuneAddress
     );
 
     /// @custom:oz-upgrades-unsafe-allow constructor

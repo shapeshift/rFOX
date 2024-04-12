@@ -15,9 +15,9 @@ const getLogs = async ({
     // address: '0x'
     events: [
       parseAbiItem(
-        "event Stake(address indexed account, uint256 amount, string runeAddress)",
+        "event Stake(address account, uint256 amount, string runeAddress)",
       ),
-      parseAbiItem("event Unstake(address indexed user, uint256 amount)"),
+      parseAbiItem("event Unstake(address account, uint256 amount)"),
     ],
     fromBlock,
     toBlock,

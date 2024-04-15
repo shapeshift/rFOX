@@ -1,66 +1,23 @@
-## Foundry
+# rFOX
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Setup
 
-Foundry consists of:
+1. Install foundry https://book.getfoundry.sh/getting-started/installation
+2. Install slither `brew install slither-analyzer`
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
+## Deploying
 
 ```shell
-$ forge build
-```
+cd foundry
 
-### Test
+# Start a local fork
+make anvil
 
-```shell
-$ forge test
-```
+# Deploy to the local fork
+make install
+make clean
+make deploy-local
 
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+# Test the contract deployed
+cast call $CONTRACT_ADDRESS "version()(uint256)" --rpc-url $LOCAL_RPC_URL
 ```

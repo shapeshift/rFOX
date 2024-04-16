@@ -138,6 +138,7 @@ contract FoxStakingV1 is
 
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
+        info.runeAddress = runeAddress;
 
         emit Stake(msg.sender, amount, runeAddress);
     }

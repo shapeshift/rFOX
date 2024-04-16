@@ -1,8 +1,8 @@
 import { Address, formatUnits, parseUnits } from "viem";
 import { Hex } from "viem";
 
-import FoxStaking from "../../foundry/out/FoxStaking.sol/FOXStaking.json";
-import MockFOXToken from "../../foundry/out/FoxStaking.t.sol/MockFOXToken.json";
+import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
+import MockFOXToken from "../../foundry/out/MockFOXToken.sol/MockFOXToken.json";
 import { localPublicClient, localWalletClient } from "./constants";
 
 export const simulateStaking = async () => {

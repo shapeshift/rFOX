@@ -26,17 +26,16 @@ https://faucet.circle.com/
 ## Deploying
 
 ```shell
-cd foundry
+cd foundry 
 
-# [local only] Start a local fork
-make anvil
-
-# Instal and deploy
+# Install
 make install
-make deploy-arbitrum-sepolia
+
+# Deploy
+./deploy.sh --env arbitrum-sepolia
 
 # Test the contract deployed
-cast call $ARBITRUM_SEPOLIA_PROXY_ADDRESS "version()(uint256)" --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
+cast call $CONTRACT_PROXY_ADDRESS "version()(uint256)" --rpc-url https://arbitrum-sepolia.infura.io/v3/$INFURA_API_KEY
 ```
 
 ### Manually verifying
@@ -49,6 +48,6 @@ forge verify-contract \
   --verifier-url https://api-sepolia.arbiscan.io/api \
   --compiler-version "v0.8.25" \
   --etherscan-api-key $ARBISCAN_API_KEY \
-  $ARBITRUM_SEPOLIA_CONTRACT_IMPLEMENTATION_ADDRESS \
+  $CONTRACT_IMPLEMENTATION_ADDRESS \
   src/FoxStakingV1.sol:FoxStakingV1
 ```

@@ -4,6 +4,7 @@ pragma solidity ^0.8.25;
 import "forge-std/Test.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {FoxStakingV1} from "../src/FoxStakingV1.sol";
+import {StakingInfo} from "../src/StakingInfo.sol";
 import {MockFOXToken} from "./utils/MockFOXToken.sol";
 import {FoxStakingTestDeployer} from "./utils/FoxStakingTestDeployer.sol";
 
@@ -228,6 +229,12 @@ contract FOXStakingTestStaking is Test {
             // Verify each user's staked amount
             uint256 total = foxStaking.balanceOf(users[i]);
             assertEq(total, amounts[i]);
+
+            // Verify each user's rune address
+            (, , , string memory runeAddress) = foxStaking.stakingInfo(
+                users[i]
+            );
+            assertEq(runeAddress, runeAddresses[i]);
         }
     }
 }

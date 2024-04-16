@@ -29,14 +29,9 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.2.0
 
-      - name: Run Forge build
-        run: |
-          forge --version
-          forge build --sizes
-        id: build
-
       - name: Run Forge tests
         run: |
+          forge clean
           forge test -vvv
         id: test
       - name: Generate coverage report

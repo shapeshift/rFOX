@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "main": "index.ts",
   "license": "MIT",
+  "type": "module",
   "devDependencies": {
     "@types/node": "^20.12.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.4"
   },
   "dependencies": {
+    "@wagmi/cli": "^2.1.4",
     "viem": "^2.9.9"
   }
 }

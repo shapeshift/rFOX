@@ -1,7 +1,7 @@
 import { Address, formatUnits, parseUnits } from "viem";
 import { Hex } from "viem";
 
-import MockFOXToken from "../../foundry/out/MockFOXToken.sol/MockFOXToken.json";
+import MockFOXToken from "../../foundry/out/MockFOXToken.sol/MockFOXToken.json" with { type: "json" };
 import { foxStakingV1Abi } from "./src/generated.ts";
 import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
 import { localPublicClient, localWalletClient } from "./constants.ts";

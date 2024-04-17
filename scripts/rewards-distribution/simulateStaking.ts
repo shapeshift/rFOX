@@ -1,9 +1,10 @@
 import { Address, formatUnits, parseUnits } from "viem";
 import { Hex } from "viem";
 
-import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
 import MockFOXToken from "../../foundry/out/MockFOXToken.sol/MockFOXToken.json";
-import { localPublicClient, localWalletClient } from "./constants";
+import { foxStakingV1Abi } from "./src/generated.ts";
+import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
+import { localPublicClient, localWalletClient } from "./constants.ts";
 
 export const simulateStaking = async () => {
   const walletClient = localWalletClient;
@@ -22,10 +23,14 @@ export const simulateStaking = async () => {
     });
   console.log(`MockFOXToken deployed to: ${mockFoxtokenContractAddress}`);
 
+  if (!mockFoxtokenContractAddress) {
+    throw new Error("FOXStaking contract address not found");
+  }
+
   // Deploy the FOXStaking contract with the address of the deployed MockFOXToken as FOX
 
   const mockFoxStakingDeployHash = await walletClient.deployContract({
-    abi: FoxStaking.abi,
+    abi: FoxStaking.abi, // foxStakingV1Abi has no args, work out why
     account: alice,
     bytecode: FoxStaking.bytecode.object as Hex,
     args: [mockFoxtokenContractAddress],
@@ -35,6 +40,11 @@ export const simulateStaking = async () => {
     await publicClient.waitForTransactionReceipt({
       hash: mockFoxStakingDeployHash,
     });
+
+  if (!mockFoxStakingContractAddress) {
+    throw new Error("FOXStaking contract address not found");
+  }
+
   console.log(`FOXStaking deployed to: ${mockFoxStakingContractAddress}`);
 
   const foxDecimals = (await publicClient.readContract({
@@ -80,11 +90,11 @@ export const simulateStaking = async () => {
   );
 
   const stakeTxHash = await walletClient.writeContract({
-    address: mockFoxStakingContractAddress as Address,
-    abi: FoxStaking.abi,
+    address: mockFoxStakingContractAddress,
+    abi: foxStakingV1Abi,
     account: bob,
     functionName: "stake",
-    args: [amountToStakeCryptoBaseUnit],
+    args: [amountToStakeCryptoBaseUnit, ""], // FIXME: add the runeAddress
   });
 
   const { transactionHash: stakeTransactionHash } =
@@ -93,12 +103,12 @@ export const simulateStaking = async () => {
     `Staked ${amountToStakeCryptoPrecision} FOX from Bob to FOXStaking contract: ${stakeTransactionHash}`,
   );
 
-  const bobStakedBalance = (await publicClient.readContract({
-    address: mockFoxStakingContractAddress as Address,
-    abi: FoxStaking.abi,
+  const bobStakedBalance = await publicClient.readContract({
+    address: mockFoxStakingContractAddress,
+    abi: foxStakingV1Abi,
     functionName: "balanceOf",
     args: [bob],
-  })) as number;
+  });
 
   console.log(
     `Bob's staked balance: ${formatUnits(BigInt(bobStakedBalance), foxDecimals)} FOX`,

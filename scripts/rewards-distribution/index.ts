@@ -1,8 +1,8 @@
 import { Address, parseAbiItem } from "viem";
-import { StakingLog } from "./events";
-import { assertUnreachable } from "./helpers";
-import { simulateStaking } from "./simulateStaking";
-import { localPublicClient } from "./constants";
+import { StakingLog } from "./events.ts";
+import { assertUnreachable } from "./helpers.ts";
+import { simulateStaking } from "./simulateStaking.ts";
+import { localPublicClient } from "./constants.ts";
 
 const getLogs = async ({
   fromBlock,
@@ -30,7 +30,7 @@ const getStakingAmount = (log: StakingLog): bigint => {
     case "Stake":
       return log.args.amount;
     case "Unstake":
-      return -log.args.amount;
+      return -BigInt(log.args.amount);
     default:
       assertUnreachable(log.eventName);
   }

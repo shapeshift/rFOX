@@ -1,15 +1,12 @@
 import { defineConfig } from "@wagmi/cli";
 import { foundry } from "@wagmi/cli/plugins";
 import { type FoundryConfig } from "@wagmi/cli/plugins";
-import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
 
 const foundryConfig: FoundryConfig = {
   project: "../../foundry",
   artifacts: "out/",
+  // We need to explicitly whitelist the contracts we want, else we get duplicate contract names from the Foundry contracts
   include: ["FoxStakingV1.sol/**", "StakingInfo.sol/**"],
-  // exclude: [
-  //   'IERC721.sol/**',
-  // ]
 };
 
 export default defineConfig({

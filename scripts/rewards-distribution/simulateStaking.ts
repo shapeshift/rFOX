@@ -42,12 +42,12 @@ export const simulateStaking = async () => {
   }
   console.log(`FOXStaking deployed to: ${mockFoxStakingContractAddress}`);
 
-  const foxDecimals = (await publicClient.readContract({
+  const foxDecimals = await publicClient.readContract({
     address: mockFoxtokenContractAddress as Address,
     abi: mockFoxTokenAbi,
     functionName: "decimals",
     args: [],
-  })) as number;
+  });
 
   // Make FOX rain to Bob
   const makeItRainTxHash = await walletClient.writeContract({

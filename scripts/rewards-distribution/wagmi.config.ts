@@ -6,7 +6,7 @@ const foundryConfig: FoundryConfig = {
   project: "../../foundry",
   artifacts: "out/",
   // We need to explicitly whitelist the contracts we want, else we get duplicate contract names from the Foundry contracts
-  include: ["FoxStakingV1.sol/**", "StakingInfo.sol/**", "MockFOXToken.sol/**"],
+  include: ["FoxStakingV1.sol/**", "MockFOXToken.sol/**"],
 };
 
 export default defineConfig({

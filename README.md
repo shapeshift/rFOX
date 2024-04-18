@@ -7,7 +7,7 @@
 ## Smart contract development
 
 - `cd foundry`
-- Build the smart contracts, artifacts and typings with `yarn build-and-generate`
+- Build the smart contracts, artifacts and typings with `yarn build`
 - Run tests with `forge test`
 
 ## CLI dev

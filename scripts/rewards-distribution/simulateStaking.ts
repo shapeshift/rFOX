@@ -4,7 +4,7 @@ import { Hex } from "viem";
 import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
 import MockFOXToken from "../../foundry/out/MockFOXToken.sol/MockFOXToken.json";
 import { localPublicClient, localWalletClient } from "./constants";
-import { foxStakingV1Abi, mockFoxTokenAbi } from "./src/generated.ts";
+import { foxStakingV1Abi, mockFoxTokenAbi } from "./generated/abi-types";
 
 export const simulateStaking = async () => {
   const walletClient = localWalletClient;

@@ -9,6 +9,7 @@
     "simple-git-hooks": "^2.11.1"
   },
   "scripts": {
+    "build-and-generate": "cd foundry && forge build && cd ../scripts/rewards-distribution && yarn install && yarn wagmi generate",
     "lint:sol": "npx prettier --write --plugin=prettier-plugin-solidity foundry/src/**/*.sol foundry/test/**/*.t.sol"
   },
   "simple-git-hooks": {

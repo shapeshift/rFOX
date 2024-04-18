@@ -10,7 +10,7 @@ const foundryConfig: FoundryConfig = {
 };
 
 export default defineConfig({
-  out: "src/generated.ts",
+  out: "generated/abi-types.ts",
   contracts: [],
   plugins: [foundry(foundryConfig)],
 });

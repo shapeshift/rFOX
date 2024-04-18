@@ -9,6 +9,7 @@
     "typescript": "^5.4.4"
   },
   "dependencies": {
+    "@wagmi/cli": "^2.1.4",
     "viem": "^2.9.9"
   }
 }

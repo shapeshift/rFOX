@@ -4,6 +4,7 @@ import { Hex } from "viem";
 import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
 import MockFOXToken from "../../foundry/out/MockFOXToken.sol/MockFOXToken.json";
 import { localPublicClient, localWalletClient } from "./constants";
+import { foxStakingV1Abi, mockFoxTokenAbi } from "./generated/abi-types";
 
 export const simulateStaking = async () => {
   const walletClient = localWalletClient;
@@ -11,7 +12,7 @@ export const simulateStaking = async () => {
   // Deploy the MockFOXToken contract from Alice's wallet
   const [alice, bob] = await walletClient.getAddresses();
   const mockFoxtokenDeployHash = await walletClient.deployContract({
-    abi: MockFOXToken.abi,
+    abi: mockFoxTokenAbi,
     account: alice,
     bytecode: MockFOXToken.bytecode.object as Hex,
   });
@@ -25,29 +26,33 @@ export const simulateStaking = async () => {
   // Deploy the FOXStaking contract with the address of the deployed MockFOXToken as FOX
 
   const mockFoxStakingDeployHash = await walletClient.deployContract({
-    abi: FoxStaking.abi,
+    abi: foxStakingV1Abi,
     account: alice,
     bytecode: FoxStaking.bytecode.object as Hex,
-    args: [mockFoxtokenContractAddress],
+    args: [], // The contructor of the FOXStaking contract does not take any arguments
   });
 
   const { contractAddress: mockFoxStakingContractAddress } =
     await publicClient.waitForTransactionReceipt({
       hash: mockFoxStakingDeployHash,
     });
+
+  if (!mockFoxStakingContractAddress) {
+    throw new Error("FOXStaking contract address not found");
+  }
   console.log(`FOXStaking deployed to: ${mockFoxStakingContractAddress}`);
 
-  const foxDecimals = (await publicClient.readContract({
+  const foxDecimals = await publicClient.readContract({
     address: mockFoxtokenContractAddress as Address,
-    abi: MockFOXToken.abi,
+    abi: mockFoxTokenAbi,
     functionName: "decimals",
     args: [],
-  })) as number;
+  });
 
   // Make FOX rain to Bob
   const makeItRainTxHash = await walletClient.writeContract({
     address: mockFoxtokenContractAddress as Address,
-    abi: MockFOXToken.abi,
+    abi: mockFoxTokenAbi,
     account: bob,
     functionName: "makeItRain",
     args: [bob, parseUnits("1000", foxDecimals)],
@@ -66,7 +71,7 @@ export const simulateStaking = async () => {
 
   const approveTxHash = await walletClient.writeContract({
     address: mockFoxtokenContractAddress as Address,
-    abi: MockFOXToken.abi,
+    abi: mockFoxTokenAbi,
     account: bob,
     functionName: "approve",
     args: [mockFoxStakingContractAddress, amountToStakeCryptoBaseUnit],
@@ -81,10 +86,10 @@ export const simulateStaking = async () => {
 
   const stakeTxHash = await walletClient.writeContract({
     address: mockFoxStakingContractAddress as Address,
-    abi: FoxStaking.abi,
+    abi: foxStakingV1Abi,
     account: bob,
     functionName: "stake",
-    args: [amountToStakeCryptoBaseUnit],
+    args: [amountToStakeCryptoBaseUnit, ""], // FIXME: add the runeAddress],
   });
 
   const { transactionHash: stakeTransactionHash } =
@@ -93,14 +98,14 @@ export const simulateStaking = async () => {
     `Staked ${amountToStakeCryptoPrecision} FOX from Bob to FOXStaking contract: ${stakeTransactionHash}`,
   );
 
-  const bobStakedBalance = (await publicClient.readContract({
+  const bobStakedBalance = await publicClient.readContract({
     address: mockFoxStakingContractAddress as Address,
-    abi: FoxStaking.abi,
+    abi: foxStakingV1Abi,
     functionName: "balanceOf",
     args: [bob],
-  })) as number;
+  });
 
   console.log(
-    `Bob's staked balance: ${formatUnits(BigInt(bobStakedBalance), foxDecimals)} FOX`,
+    `Bob's staked balance: ${formatUnits(bobStakedBalance, foxDecimals)} FOX`,
   );
 };

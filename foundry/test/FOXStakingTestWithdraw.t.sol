@@ -65,6 +65,7 @@ contract FOXStakingTestWithdraw is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
+
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
@@ -92,6 +93,7 @@ contract FOXStakingTestWithdraw is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
+
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 0);
         vm.assertEq(stakingBalance_after, 0);

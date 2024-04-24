@@ -68,6 +68,7 @@ contract FOXStakingTestStaking is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
+
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 1000);
@@ -99,6 +100,7 @@ contract FOXStakingTestStaking is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
+
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 0);
         vm.assertEq(stakingBalance_before, 0);
@@ -122,6 +124,7 @@ contract FOXStakingTestStaking is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
+
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 1000);
@@ -150,6 +153,7 @@ contract FOXStakingTestStaking is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
+
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 0);
         vm.assertEq(stakingBalance_after, 0);
@@ -178,6 +182,7 @@ contract FOXStakingTestStaking is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
+
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 0);
         vm.assertEq(stakingBalance_after, 0);
@@ -220,9 +225,7 @@ contract FOXStakingTestStaking is Test {
             assertEq(total, amounts[i]);
 
             // Verify each user's rune address
-            (, , string memory runeAddress) = foxStaking.stakingInfo(
-                users[i]
-            );
+            (, , string memory runeAddress) = foxStaking.stakingInfo(users[i]);
             assertEq(runeAddress, runeAddresses[i]);
         }
     }

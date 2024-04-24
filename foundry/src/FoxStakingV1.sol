@@ -242,11 +242,21 @@ contract FoxStakingV1 is
         return info.stakingBalance + info.unstakingBalance;
     }
 
-    function getUnstakingInfo(address account, uint256 index)
+    // @notice helper function to access dynamic array nested in struct from external sources
+    // @param account The address we're getting the unstaking info for.
+    // @param index The index of the unstaking info array we're getting. 
+    function getUnstakingInfo(
+        address account,
+        uint256 index
+    ) external view returns (UnstakingInfo memory) {
+        return stakingInfo[account].unstakingInfo[index];
+    }
+
+    function getUnstakingInfoCount(address account)
         external
         view
-        returns (UnstakingInfo memory)
+        returns (uint256)
     {
-        return stakingInfo[account].unstakingInfo[index];
+        return stakingInfo[account].unstakingInfo.length;
     }
 }

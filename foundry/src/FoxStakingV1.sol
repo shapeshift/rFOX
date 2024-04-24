@@ -8,6 +8,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {StakingInfo} from "./StakingInfo.sol";
+import {UnstakingInfo} from "./UnstakingInfo.sol";
 
 contract FoxStakingV1 is
     Initializable,
@@ -29,7 +30,7 @@ contract FoxStakingV1 is
         uint256 amount,
         string indexed runeAddress
     );
-    event Unstake(address indexed account, uint256 amount);
+    event Unstake(address indexed account, uint256 amount, uint256 cooldownExpiry);
     event Withdraw(address indexed account, uint256 amount);
     event SetRuneAddress(
         address indexed account,
@@ -162,23 +163,59 @@ contract FoxStakingV1 is
         info.stakingBalance -= amount;
         info.unstakingBalance += amount;
 
-        // Set or update the cooldown period
-        info.cooldownExpiry = block.timestamp + cooldownPeriod;
+        UnstakingInfo memory unstakingInfo = UnstakingInfo({
+            unstakingBalance: amount,
+            cooldownExpiry: block.timestamp + cooldownPeriod
+        });
 
-        emit Unstake(msg.sender, amount);
+        info.unstakingInfo.push(unstakingInfo); // append to the end of unstakingInfo array
+
+        emit Unstake(msg.sender, amount, unstakingInfo.cooldownExpiry);
+    }
+
+
+    // this function seems odd at first, but we have to take into account the possibility
+    // that the cool down period has changed, and its possible the array is NOT in chronological
+    // order of expiration.  If that occurs, a user could want to be able to process index 1 before
+    // index 0. This gives them the ability to do that, without have to worry about
+    // some complex resize logic while we iterate the array that would better be done off chain
+    function withdraw(uint256 index) public whenNotPaused whenWithdrawalsNotPaused {
+        StakingInfo storage info = stakingInfo[msg.sender];
+        require (
+            info.unstakingInfo.length > 0,
+            "No balance to unstake"
+        );
+
+        require (
+            info.unstakingInfo.length > index,
+            "invalid index"
+        );
+
+        UnstakingInfo memory unstakingInfo = info.unstakingInfo[index];
+        
+        require(
+            block.timestamp >= unstakingInfo.cooldownExpiry,
+            "Unstake cooldown period has not expired"
+        );
+
+        if (info.unstakingInfo.length > 1) {
+            // we have more elements in the array, so shift the last element to the index being withdrawn
+            // and then shorten the array by 1
+            info.unstakingInfo[index] = info.unstakingInfo[info.unstakingInfo.length - 1];
+            info.unstakingInfo.pop();
+        } else {
+            // the array is done, we can delete the whole thing
+            delete info.unstakingInfo;
+        }
+        info.unstakingBalance -= unstakingInfo.unstakingBalance;
+        foxToken.safeTransfer(msg.sender, unstakingInfo.unstakingBalance);
+        emit Withdraw(msg.sender, unstakingInfo.unstakingBalance);
     }
 
     /// @notice Withdraws FOX tokens - assuming there's anything to withdraw and unstake cooldown period has completed - else reverts
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    function withdraw() external whenNotPaused whenWithdrawalsNotPaused {
-        StakingInfo storage info = stakingInfo[msg.sender];
-
-        require(info.unstakingBalance > 0, "Cannot withdraw 0");
-        require(block.timestamp >= info.cooldownExpiry, "Not cooled down yet");
-        uint256 withdrawAmount = info.unstakingBalance;
-        info.unstakingBalance = 0;
-        foxToken.safeTransfer(msg.sender, withdrawAmount);
-        emit Withdraw(msg.sender, withdrawAmount);
+    function withdraw() external {
+        withdraw(0);
     }
 
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.

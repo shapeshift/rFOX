@@ -6,6 +6,6 @@ import {UnstakingInfo} from "./UnstakingInfo.sol";
 struct StakingInfo {
     uint256 stakingBalance;
     uint256 unstakingBalance;
-    UnstakingInfo[] unstakingInfo;
     string runeAddress;
+    UnstakingInfo[] unstakingInfo;
 }

@@ -30,7 +30,11 @@ contract FoxStakingV1 is
         uint256 amount,
         string indexed runeAddress
     );
-    event Unstake(address indexed account, uint256 amount, uint256 cooldownExpiry);
+    event Unstake(
+        address indexed account,
+        uint256 amount,
+        uint256 cooldownExpiry
+    );
     event Withdraw(address indexed account, uint256 amount);
     event SetRuneAddress(
         address indexed account,
@@ -173,35 +177,32 @@ contract FoxStakingV1 is
         emit Unstake(msg.sender, amount, unstakingInfo.cooldownExpiry);
     }
 
-
     // this function seems odd at first, but we have to take into account the possibility
     // that the cool down period has changed, and its possible the array is NOT in chronological
     // order of expiration.  If that occurs, a user could want to be able to process index 1 before
     // index 0. This gives them the ability to do that, without have to worry about
     // some complex resize logic while we iterate the array that would better be done off chain
-    function withdraw(uint256 index) public whenNotPaused whenWithdrawalsNotPaused {
+    function withdraw(
+        uint256 index
+    ) public whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
-        require (
-            info.unstakingInfo.length > 0,
-            "No balance to unstake"
-        );
+        require(info.unstakingInfo.length > 0, "No balance to withdraw");
 
-        require (
-            info.unstakingInfo.length > index,
-            "invalid index"
-        );
+        require(info.unstakingInfo.length > index, "invalid index");
 
         UnstakingInfo memory unstakingInfo = info.unstakingInfo[index];
-        
+
         require(
             block.timestamp >= unstakingInfo.cooldownExpiry,
-            "Unstake cooldown period has not expired"
+            "Not cooled down yet"
         );
 
         if (info.unstakingInfo.length > 1) {
             // we have more elements in the array, so shift the last element to the index being withdrawn
             // and then shorten the array by 1
-            info.unstakingInfo[index] = info.unstakingInfo[info.unstakingInfo.length - 1];
+            info.unstakingInfo[index] = info.unstakingInfo[
+                info.unstakingInfo.length - 1
+            ];
             info.unstakingInfo.pop();
         } else {
             // the array is done, we can delete the whole thing
@@ -239,5 +240,13 @@ contract FoxStakingV1 is
     function balanceOf(address account) external view returns (uint256 total) {
         StakingInfo memory info = stakingInfo[account];
         return info.stakingBalance + info.unstakingBalance;
+    }
+
+    function getUnstakingInfo(address account, uint256 index)
+        external
+        view
+        returns (UnstakingInfo memory)
+    {
+        return stakingInfo[account].unstakingInfo[index];
     }
 }

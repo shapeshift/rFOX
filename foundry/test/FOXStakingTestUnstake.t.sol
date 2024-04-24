@@ -52,8 +52,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
@@ -76,8 +74,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 0);
@@ -101,7 +97,7 @@ contract FOXStakingTestUnstake is Test {
         vm.startPrank(user);
 
         // Check user staking balances
-        (uint256 stakingBalance, uint256 unstakingBalance, , ) = foxStaking
+        (uint256 stakingBalance, uint256 unstakingBalance, ) = foxStaking
             .stakingInfo(user);
         vm.assertEq(stakingBalance + unstakingBalance, 1000);
         vm.assertEq(stakingBalance, 1000);
@@ -115,8 +111,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
-            ,
-
         ) = foxStaking.stakingInfo(user);
 
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
@@ -133,8 +127,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
@@ -148,8 +140,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 1000);
@@ -165,8 +155,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
@@ -179,8 +167,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 0);
@@ -196,8 +182,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
@@ -210,8 +194,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 1000);
         vm.assertEq(stakingBalance_after, 200);
@@ -228,8 +210,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
         vm.assertEq(stakingBalance_before, 1000);
@@ -246,9 +226,8 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_one,
             uint256 unstakingBalance_one,
-            uint256 cooldownExpiry_one,
-
         ) = foxStaking.stakingInfo(user);
+        uint256 cooldownExpiry_one = foxStaking.getUnstakingInfo(user, 0).cooldownExpiry;
         vm.assertEq(cooldownExpiry_one, block.timestamp + 28 days);
 
         // Check user staking balances reflect the withdrawal request
@@ -266,8 +245,6 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_two,
             uint256 unstakingBalance_two,
-            ,
-
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_two + unstakingBalance_two, 700);
         vm.assertEq(stakingBalance_two, 700);
@@ -280,9 +257,8 @@ contract FOXStakingTestUnstake is Test {
         (
             uint256 stakingBalance_three,
             uint256 unstakingBalance_three,
-            uint256 cooldownExpiry_three,
-
         ) = foxStaking.stakingInfo(user);
+        uint256 cooldownExpiry_three = foxStaking.getUnstakingInfo(user, 0).cooldownExpiry;
         vm.assertGt(cooldownExpiry_three, block.timestamp);
 
         // Check user staking balances reflect the withdrawal request

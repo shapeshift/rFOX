@@ -158,7 +158,7 @@ contract FOXStakingTestWithdraw is Test {
         vm.warp(block.timestamp + 28 days);
 
         // Try to withdraw 0
-        vm.expectRevert("No balance to withdraw");
+        vm.expectRevert("No unstaking requests found");
         foxStaking.withdraw();
 
         // Check user wallet balance of FOX is still 0

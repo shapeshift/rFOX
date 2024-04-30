@@ -8,7 +8,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {StakingInfo} from "./StakingInfo.sol";
-import {UnstakingInfo} from "./UnstakingInfo.sol";
+import {UnstakingRequest} from "./UnstakingRequest.sol";
 
 contract FoxStakingV1 is
     Initializable,
@@ -167,14 +167,14 @@ contract FoxStakingV1 is
         info.stakingBalance -= amount;
         info.unstakingBalance += amount;
 
-        UnstakingInfo memory unstakingInfo = UnstakingInfo({
+        UnstakingRequest memory unstakingRequest = UnstakingRequest({
             unstakingBalance: amount,
             cooldownExpiry: block.timestamp + cooldownPeriod
         });
 
-        info.unstakingInfo.push(unstakingInfo); // append to the end of unstakingInfo array
+        info.unstakingRequests.push(unstakingRequest); // append to the end of unstakingRequests array
 
-        emit Unstake(msg.sender, amount, unstakingInfo.cooldownExpiry);
+        emit Unstake(msg.sender, amount, unstakingRequest.cooldownExpiry);
     }
 
     /// @notice Allows a user to withdraw a specified claim by index
@@ -183,48 +183,55 @@ contract FoxStakingV1 is
         uint256 index
     ) public whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
-        require(info.unstakingInfo.length > 0, "No balance to withdraw");
+        require(
+            info.unstakingRequests.length > 0,
+            "No unstaking requests found"
+        );
 
-        require(info.unstakingInfo.length > index, "invalid index");
+        require(info.unstakingRequests.length > index, "invalid index");
 
-        UnstakingInfo memory unstakingInfo = info.unstakingInfo[index];
+        UnstakingRequest memory unstakingRequest = info.unstakingRequests[
+            index
+        ];
 
         require(
-            block.timestamp >= unstakingInfo.cooldownExpiry,
+            block.timestamp >= unstakingRequest.cooldownExpiry,
             "Not cooled down yet"
         );
 
-        if (info.unstakingInfo.length > 1) {
+        if (info.unstakingRequests.length > 1) {
             // we have more elements in the array, so shift the last element to the index being withdrawn
             // and then shorten the array by 1
-            info.unstakingInfo[index] = info.unstakingInfo[
-                info.unstakingInfo.length - 1
+            info.unstakingRequests[index] = info.unstakingRequests[
+                info.unstakingRequests.length - 1
             ];
-            info.unstakingInfo.pop();
+            info.unstakingRequests.pop();
         } else {
             // the array is done, we can delete the whole thing
-            delete info.unstakingInfo;
+            delete info.unstakingRequests;
         }
-        info.unstakingBalance -= unstakingInfo.unstakingBalance;
-        foxToken.safeTransfer(msg.sender, unstakingInfo.unstakingBalance);
-        emit Withdraw(msg.sender, unstakingInfo.unstakingBalance);
+        info.unstakingBalance -= unstakingRequest.unstakingBalance;
+        foxToken.safeTransfer(msg.sender, unstakingRequest.unstakingBalance);
+        emit Withdraw(msg.sender, unstakingRequest.unstakingBalance);
     }
 
     /// @notice processes the most recent unstaking request available to the user, else reverts.
     function withdraw() external {
         StakingInfo memory info = stakingInfo[msg.sender];
-        uint256 length = info.unstakingInfo.length;
-        require(length > 0, "No balance to withdraw");
+        uint256 length = info.unstakingRequests.length;
+        require(length > 0, "No unstaking requests found");
         uint256 indexToProcess;
         uint256 earliestCooldownExpiry = type(uint256).max;
 
         for (uint256 i; i < length; i++) {
-            UnstakingInfo memory unstakingInfo = info.unstakingInfo[i];
-            if (block.timestamp >= unstakingInfo.cooldownExpiry) {
+            UnstakingRequest memory unstakingRequest = info.unstakingRequests[
+                i
+            ];
+            if (block.timestamp >= unstakingRequest.cooldownExpiry) {
                 // this claim is ready to be processed
-                if (unstakingInfo.cooldownExpiry < earliestCooldownExpiry) {
+                if (unstakingRequest.cooldownExpiry < earliestCooldownExpiry) {
                     // we found a more recent claim we can process.
-                    earliestCooldownExpiry = unstakingInfo.cooldownExpiry;
+                    earliestCooldownExpiry = unstakingRequest.cooldownExpiry;
                     indexToProcess = i;
                 }
             }
@@ -261,22 +268,22 @@ contract FoxStakingV1 is
     }
 
     /// @notice helper function to access dynamic array nested in struct from external sources
-    /// @param account The address we're getting the unstaking info for.
-    /// @param index The index of the unstaking info array we're getting.
-    function getUnstakingInfo(
+    /// @param account The address we're getting the unstaking request for.
+    /// @param index The index of the unstaking request array we're getting.
+    function getUnstakingRequest(
         address account,
         uint256 index
-    ) external view returns (UnstakingInfo memory) {
-        return stakingInfo[account].unstakingInfo[index];
+    ) external view returns (UnstakingRequest memory) {
+        return stakingInfo[account].unstakingRequests[index];
     }
 
-    /// @notice returns the numbery of ustaking info elements for a given address
+    /// @notice returns the numbery of ustaking request elements for a given address
     /// @dev useful for off chain processing
     /// @param account The address we're getting the unstaking info count for.
-    /// @return length The number of unstaking info elements.
-    function getUnstakingInfoCount(
+    /// @return length The number of unstaking request elements.
+    function getUnstakingRequestCount(
         address account
     ) external view returns (uint256) {
-        return stakingInfo[account].unstakingInfo.length;
+        return stakingInfo[account].unstakingRequests.length;
     }
 }

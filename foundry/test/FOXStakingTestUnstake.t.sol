@@ -247,7 +247,7 @@ contract FOXStakingTestUnstake is Test {
 
         ) = foxStaking.stakingInfo(user);
         uint256 cooldownExpiry_one = foxStaking
-            .getUnstakingInfo(user, 0)
+            .getUnstakingRequest(user, 0)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_one, block.timestamp + 28 days);
 
@@ -282,7 +282,7 @@ contract FOXStakingTestUnstake is Test {
 
         ) = foxStaking.stakingInfo(user);
         uint256 cooldownExpiry_three = foxStaking
-            .getUnstakingInfo(user, 0)
+            .getUnstakingRequest(user, 0)
             .cooldownExpiry;
         vm.assertGt(cooldownExpiry_three, block.timestamp);
 
@@ -321,7 +321,7 @@ contract FOXStakingTestUnstake is Test {
 
         ) = foxStaking.stakingInfo(user);
         uint256 cooldownExpiry_one = foxStaking
-            .getUnstakingInfo(user, 0)
+            .getUnstakingRequest(user, 0)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_one, block.timestamp + 28 days);
 
@@ -341,7 +341,7 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(302);
 
         uint256 cooldownExpiry_two = foxStaking
-            .getUnstakingInfo(user, 1)
+            .getUnstakingRequest(user, 1)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_two, block.timestamp + 28 days);
 
@@ -361,7 +361,7 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(303);
 
         uint256 cooldownExpiry_three = foxStaking
-            .getUnstakingInfo(user, 2)
+            .getUnstakingRequest(user, 2)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_three, block.timestamp + 28 days);
 
@@ -374,7 +374,7 @@ contract FOXStakingTestUnstake is Test {
         vm.assertEq(unstakingBalance_three, 301 + 302 + 303);
         vm.assertEq(stakingBalance_three, 1000 - 301 - 302 - 303);
 
-        vm.assertEq(foxStaking.getUnstakingInfoCount(user), 3);
+        vm.assertEq(foxStaking.getUnstakingRequestCount(user), 3);
 
         // Time warp to first expiry
         vm.warp(cooldownExpiry_one);
@@ -403,10 +403,10 @@ contract FOXStakingTestUnstake is Test {
 
         // check the length of the array is correct
         // and the sums match the staking info
-        vm.assertEq(foxStaking.getUnstakingInfoCount(user), 2);
+        vm.assertEq(foxStaking.getUnstakingRequestCount(user), 2);
         vm.assertEq(
-            foxStaking.getUnstakingInfo(user, 0).unstakingBalance +
-                foxStaking.getUnstakingInfo(user, 1).unstakingBalance,
+            foxStaking.getUnstakingRequest(user, 0).unstakingBalance +
+                foxStaking.getUnstakingRequest(user, 1).unstakingBalance,
             302 + 303
         );
 
@@ -434,8 +434,11 @@ contract FOXStakingTestUnstake is Test {
         vm.assertEq(unstakingBalance_five, 303);
 
         // check the lenght of the array is correct and the indexes have shifted
-        vm.assertEq(foxStaking.getUnstakingInfoCount(user), 1);
-        vm.assertEq(foxStaking.getUnstakingInfo(user, 0).unstakingBalance, 303);
+        vm.assertEq(foxStaking.getUnstakingRequestCount(user), 1);
+        vm.assertEq(
+            foxStaking.getUnstakingRequest(user, 0).unstakingBalance,
+            303
+        );
 
         // Time warp to third expiry
         vm.warp(cooldownExpiry_three);
@@ -454,7 +457,7 @@ contract FOXStakingTestUnstake is Test {
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_six, 1000 - 301 - 302 - 303);
         vm.assertEq(unstakingBalance_six, 0);
-        vm.assertEq(foxStaking.getUnstakingInfoCount(user), 0);
+        vm.assertEq(foxStaking.getUnstakingRequestCount(user), 0);
 
         vm.stopPrank();
     }
@@ -488,7 +491,7 @@ contract FOXStakingTestUnstake is Test {
 
         ) = foxStaking.stakingInfo(user);
         uint256 cooldownExpiry_one = foxStaking
-            .getUnstakingInfo(user, 0)
+            .getUnstakingRequest(user, 0)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_one, block.timestamp + 28 days);
 
@@ -507,7 +510,7 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(302);
 
         uint256 cooldownExpiry_two = foxStaking
-            .getUnstakingInfo(user, 1)
+            .getUnstakingRequest(user, 1)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_two, block.timestamp + 2 days);
 
@@ -527,7 +530,7 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(303);
 
         uint256 cooldownExpiry_three = foxStaking
-            .getUnstakingInfo(user, 2)
+            .getUnstakingRequest(user, 2)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_three, block.timestamp + 2 days);
 
@@ -555,8 +558,11 @@ contract FOXStakingTestUnstake is Test {
         vm.expectRevert("Not cooled down yet");
         foxStaking.withdraw(0);
 
-        vm.assertEq(foxStaking.getUnstakingInfo(user, 0).unstakingBalance, 301);
-        vm.assertEq(foxStaking.getUnstakingInfoCount(user), 1);
+        vm.assertEq(
+            foxStaking.getUnstakingRequest(user, 0).unstakingBalance,
+            301
+        );
+        vm.assertEq(foxStaking.getUnstakingRequestCount(user), 1);
 
         vm.warp(block.timestamp + 28 days);
         // calling again should withdraw the 301
@@ -602,10 +608,10 @@ contract FOXStakingTestUnstake is Test {
 
     function testWithdrawReverts() public {
         vm.startPrank(user);
-        vm.expectRevert("No balance to withdraw");
+        vm.expectRevert("No unstaking requests found");
         foxStaking.withdraw();
 
-        vm.expectRevert("No balance to withdraw");
+        vm.expectRevert("No unstaking requests found");
         foxStaking.withdraw(5);
 
         foxStaking.unstake(100);
@@ -628,10 +634,10 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.withdraw();
         foxStaking.withdraw();
 
-        vm.expectRevert("No balance to withdraw");
+        vm.expectRevert("No unstaking requests found");
         foxStaking.withdraw();
 
-        vm.expectRevert("No balance to withdraw");
+        vm.expectRevert("No unstaking requests found");
         foxStaking.withdraw(5);
     }
 

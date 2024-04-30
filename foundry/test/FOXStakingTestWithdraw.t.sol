@@ -44,7 +44,7 @@ contract FOXStakingTestWithdraw is Test {
 
         vm.startPrank(user);
         vm.expectRevert("Withdrawals are paused"); // Make sure this matches the actual revert message used in your contract
-        foxStaking.withdraw();
+        foxStaking.withdraw(0);
         vm.stopPrank();
     }
 
@@ -55,7 +55,7 @@ contract FOXStakingTestWithdraw is Test {
         vm.expectRevert(
             abi.encodeWithSelector(Pausable.EnforcedPause.selector)
         );
-        foxStaking.withdraw();
+        foxStaking.withdraw(0);
         vm.stopPrank();
     }
 

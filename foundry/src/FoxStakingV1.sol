@@ -210,27 +210,30 @@ contract FoxStakingV1 is
         emit Withdraw(msg.sender, unstakingInfo.unstakingBalance);
     }
 
-    /// @notice processes the most recent unstaking request available to the user, else reverts. 
+    /// @notice processes the most recent unstaking request available to the user, else reverts.
     function withdraw() external {
         StakingInfo storage info = stakingInfo[msg.sender];
         uint256 length = info.unstakingInfo.length;
         require(length > 0, "No balance to withdraw");
-        uint256 indexToProcess; 
+        uint256 indexToProcess;
         uint256 earliestCooldownExpiry = type(uint256).max;
-        
+
         for (uint256 i; i < length; i++) {
             UnstakingInfo memory unstakingInfo = info.unstakingInfo[i];
             if (block.timestamp >= unstakingInfo.cooldownExpiry) {
                 // this claim is ready to be processed
                 if (unstakingInfo.cooldownExpiry < earliestCooldownExpiry) {
-                    // we found a more recent claim we can process. 
+                    // we found a more recent claim we can process.
                     earliestCooldownExpiry = unstakingInfo.cooldownExpiry;
                     indexToProcess = i;
-                }        
+                }
             }
         }
 
-        require(earliestCooldownExpiry != type(uint256).max, "Not cooled down yet");
+        require(
+            earliestCooldownExpiry != type(uint256).max,
+            "Not cooled down yet"
+        );
         withdraw(indexToProcess);
     }
 

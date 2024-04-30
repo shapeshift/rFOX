@@ -32,13 +32,13 @@ contract FOXStakingTestUnstake is Test {
         // https://book.getfoundry.sh/cheatcodes/start-prank
         vm.startPrank(user);
         // Approve FoxStaking contract to spend user's FOX tokens
-        foxToken.approve(address(foxStaking), amount);        
+        foxToken.approve(address(foxStaking), amount);
         // Stake tokens
         foxStaking.stake(amount, runeAddress);
 
         vm.startPrank(user2);
         // Approve FoxStaking contract to spend user's FOX tokens
-        foxToken.approve(address(foxStaking), amount);        
+        foxToken.approve(address(foxStaking), amount);
         // Stake tokens
         foxStaking.stake(amount, runeAddress);
 
@@ -459,9 +459,10 @@ contract FOXStakingTestUnstake is Test {
         vm.stopPrank();
     }
 
-    function testUnstake_multipleConcurrentWithdrawsWithChangedCooldown() public
+    function testUnstake_multipleConcurrentWithdrawsWithChangedCooldown()
+        public
     {
-         vm.startPrank(user);
+        vm.startPrank(user);
 
         // Check user staking balances
         (
@@ -499,7 +500,7 @@ contract FOXStakingTestUnstake is Test {
         // change the cooldown to be 2 days
         vm.stopPrank();
         foxStaking.setCooldownPeriod(2 days);
-        
+
         vm.startPrank(user);
 
         // Request withdraw of another 302 FOX
@@ -529,11 +530,10 @@ contract FOXStakingTestUnstake is Test {
             .getUnstakingInfo(user, 2)
             .cooldownExpiry;
         vm.assertEq(cooldownExpiry_three, block.timestamp + 2 days);
-        
+
         // Time warp another two days
         vm.warp(block.timestamp + 2 days);
 
-        
         // we should now be able to withdraw the last 2 elements but not the first!
         vm.expectRevert("Not cooled down yet");
         foxStaking.withdraw(0);
@@ -544,24 +544,22 @@ contract FOXStakingTestUnstake is Test {
         uint256 balAfter = foxToken.balanceOf(user);
         vm.assertEq(balAfter - balBefore, 302);
 
-        // calling again should withdraw the 303 
+        // calling again should withdraw the 303
         balBefore = foxToken.balanceOf(user);
         // Withdraw the 303 FOX
         foxStaking.withdraw();
         balAfter = foxToken.balanceOf(user);
         vm.assertEq(balAfter - balBefore, 303);
 
-        // we should still have the final claim of 301 pending. 
+        // we should still have the final claim of 301 pending.
         vm.expectRevert("Not cooled down yet");
         foxStaking.withdraw(0);
 
-        vm.assertEq(foxStaking
-            .getUnstakingInfo(user, 0)
-            .unstakingBalance, 301);
+        vm.assertEq(foxStaking.getUnstakingInfo(user, 0).unstakingBalance, 301);
         vm.assertEq(foxStaking.getUnstakingInfoCount(user), 1);
 
         vm.warp(block.timestamp + 28 days);
-        // calling again should withdraw the 301 
+        // calling again should withdraw the 301
         balBefore = foxToken.balanceOf(user);
 
         foxStaking.withdraw();
@@ -579,14 +577,13 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(102);
         foxStaking.unstake(103);
         foxStaking.unstake(104);
-        
+
         vm.expectRevert("Not cooled down yet");
         foxStaking.withdraw();
 
         // Time warp 28 days
         vm.warp(block.timestamp + 28 days);
 
-        
         uint256 balBefore = foxToken.balanceOf(user);
         // Withdraw the 102 FOX
         foxStaking.withdraw(2);

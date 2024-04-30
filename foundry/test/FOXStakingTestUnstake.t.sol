@@ -343,8 +343,8 @@ contract FOXStakingTestUnstake is Test {
             uint256 unstakingBalance_two,
 
         ) = foxStaking.stakingInfo(user);
-        vm.assertEq(unstakingBalance_two, 301+302);
-        vm.assertEq(stakingBalance_two, 1000-301-302);
+        vm.assertEq(unstakingBalance_two, 301 + 302);
+        vm.assertEq(stakingBalance_two, 1000 - 301 - 302);
 
         // Time warp 2 days
         vm.warp(block.timestamp + 2 days);
@@ -363,12 +363,12 @@ contract FOXStakingTestUnstake is Test {
             uint256 unstakingBalance_three,
 
         ) = foxStaking.stakingInfo(user);
-        vm.assertEq(unstakingBalance_three, 301+302+303);
-        vm.assertEq(stakingBalance_three, 1000-301-302-303);
-        
+        vm.assertEq(unstakingBalance_three, 301 + 302 + 303);
+        vm.assertEq(stakingBalance_three, 1000 - 301 - 302 - 303);
+
         vm.assertEq(foxStaking.getUnstakingInfoCount(user), 3);
 
-        // Time warp to first expiry 
+        // Time warp to first expiry
         vm.warp(cooldownExpiry_one);
 
         // we should not be able to withdraw 2 or 3 elements (they are not cooled down yet)
@@ -377,7 +377,7 @@ contract FOXStakingTestUnstake is Test {
 
         vm.expectRevert("Not cooled down yet");
         foxStaking.withdraw(2);
-        
+
         uint256 balBefore = foxToken.balanceOf(user);
         // Withdraw the 301 FOX
         foxStaking.withdraw();
@@ -390,17 +390,21 @@ contract FOXStakingTestUnstake is Test {
             uint256 unstakingBalance_four,
 
         ) = foxStaking.stakingInfo(user);
-        vm.assertEq(stakingBalance_four, 1000-301-302-303); 
-        vm.assertEq(unstakingBalance_four, 302+303); 
+        vm.assertEq(stakingBalance_four, 1000 - 301 - 302 - 303);
+        vm.assertEq(unstakingBalance_four, 302 + 303);
 
-        // check the length of the array is correct 
+        // check the length of the array is correct
         // and the sums match the staking info
         vm.assertEq(foxStaking.getUnstakingInfoCount(user), 2);
-        vm.assertEq(foxStaking.getUnstakingInfo(user, 0).unstakingBalance + foxStaking.getUnstakingInfo(user, 1).unstakingBalance, 302 + 303);
+        vm.assertEq(
+            foxStaking.getUnstakingInfo(user, 0).unstakingBalance +
+                foxStaking.getUnstakingInfo(user, 1).unstakingBalance,
+            302 + 303
+        );
 
         // Time warp to second expiry
         vm.warp(cooldownExpiry_two);
-        
+
         // we should not be able to withdraw 3rd element (it is not cooled down yet)
         // note the index shifts to zero because of how we are deleting the elements
         vm.expectRevert("Not cooled down yet");
@@ -418,7 +422,7 @@ contract FOXStakingTestUnstake is Test {
             uint256 unstakingBalance_five,
 
         ) = foxStaking.stakingInfo(user);
-        vm.assertEq(stakingBalance_five, 1000-301-302-303);
+        vm.assertEq(stakingBalance_five, 1000 - 301 - 302 - 303);
         vm.assertEq(unstakingBalance_five, 303);
 
         // check the lenght of the array is correct and the indexes have shifted
@@ -440,19 +444,16 @@ contract FOXStakingTestUnstake is Test {
             uint256 unstakingBalance_six,
 
         ) = foxStaking.stakingInfo(user);
-        vm.assertEq(stakingBalance_six, 1000-301-302-303);
+        vm.assertEq(stakingBalance_six, 1000 - 301 - 302 - 303);
         vm.assertEq(unstakingBalance_six, 0);
         vm.assertEq(foxStaking.getUnstakingInfoCount(user), 0);
 
         vm.stopPrank();
     }
 
-    function testunstake_multipleConcurrentWithdrawsWithChangedCooldown() public {
+    function testunstake_multipleConcurrentWithdrawsWithChangedCooldown()
+        public
+    {}
 
-    }
-
-    function testunstake_outOfOrderWithdraws() public {
-
-    }
-    
+    function testunstake_outOfOrderWithdraws() public {}
 }

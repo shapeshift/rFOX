@@ -58,6 +58,13 @@ export const foxStakingV1Abi = [
   },
   {
     type: "function",
+    inputs: [{ name: "account", internalType: "address", type: "address" }],
+    name: "getUnstakingInfoCount",
+    outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     inputs: [
       { name: "foxTokenAddress", internalType: "address", type: "address" },
     ],

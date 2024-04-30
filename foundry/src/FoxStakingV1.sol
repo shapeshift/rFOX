@@ -177,11 +177,8 @@ contract FoxStakingV1 is
         emit Unstake(msg.sender, amount, unstakingInfo.cooldownExpiry);
     }
 
-    // this function seems odd at first, but we have to take into account the possibility
-    // that the cool down period has changed, and its possible the array is NOT in chronological
-    // order of expiration.  If that occurs, a user could want to be able to process index 1 before
-    // index 0. This gives them the ability to do that, without have to worry about
-    // some complex resize logic while we iterate the array that would better be done off chain
+    /// @notice Allows a user to withdraw a specified claim by index
+    /// @param index The index of the claim to withdraw
     function withdraw(
         uint256 index
     ) public whenNotPaused whenWithdrawalsNotPaused {
@@ -213,10 +210,28 @@ contract FoxStakingV1 is
         emit Withdraw(msg.sender, unstakingInfo.unstakingBalance);
     }
 
-    /// @notice Withdraws FOX tokens - assuming there's anything to withdraw and unstake cooldown period has completed - else reverts
-    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
+    /// @notice processes the most recent unstaking request available to the user, else reverts. 
     function withdraw() external {
-        withdraw(0);
+        StakingInfo storage info = stakingInfo[msg.sender];
+        uint256 length = info.unstakingInfo.length;
+        require(length > 0, "No balance to withdraw");
+        uint256 indexToProcess; 
+        uint256 earliestCooldownExpiry = type(uint256).max;
+        
+        for (uint256 i; i < length; i++) {
+            UnstakingInfo memory unstakingInfo = info.unstakingInfo[i];
+            if (block.timestamp >= unstakingInfo.cooldownExpiry) {
+                // this claim is ready to be processed
+                if (unstakingInfo.cooldownExpiry < earliestCooldownExpiry) {
+                    // we found a more recent claim we can process. 
+                    earliestCooldownExpiry = unstakingInfo.cooldownExpiry;
+                    indexToProcess = i;
+                }        
+            }
+        }
+
+        require(earliestCooldownExpiry != type(uint256).max, "Not cooled down yet");
+        withdraw(indexToProcess);
     }
 
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.
@@ -242,9 +257,9 @@ contract FoxStakingV1 is
         return info.stakingBalance + info.unstakingBalance;
     }
 
-    // @notice helper function to access dynamic array nested in struct from external sources
-    // @param account The address we're getting the unstaking info for.
-    // @param index The index of the unstaking info array we're getting. 
+    /// @notice helper function to access dynamic array nested in struct from external sources
+    /// @param account The address we're getting the unstaking info for.
+    /// @param index The index of the unstaking info array we're getting.
     function getUnstakingInfo(
         address account,
         uint256 index
@@ -252,11 +267,13 @@ contract FoxStakingV1 is
         return stakingInfo[account].unstakingInfo[index];
     }
 
-    function getUnstakingInfoCount(address account)
-        external
-        view
-        returns (uint256)
-    {
+    /// @notice returns the numbery of ustaking info elements for a given address
+    /// @dev useful for off chain processing
+    /// @param account The address we're getting the unstaking info count for.
+    /// @return length The number of unstaking info elements.
+    function getUnstakingInfoCount(
+        address account
+    ) external view returns (uint256) {
         return stakingInfo[account].unstakingInfo.length;
     }
 }

@@ -212,7 +212,7 @@ contract FoxStakingV1 is
 
     /// @notice processes the most recent unstaking request available to the user, else reverts.
     function withdraw() external {
-        StakingInfo storage info = stakingInfo[msg.sender];
+        StakingInfo memory info = stakingInfo[msg.sender];
         uint256 length = info.unstakingInfo.length;
         require(length > 0, "No balance to withdraw");
         uint256 indexToProcess;

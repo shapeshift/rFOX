@@ -433,7 +433,7 @@ contract FOXStakingTestUnstake is Test {
         vm.assertEq(stakingBalance_five, 1000 - 301 - 302 - 303);
         vm.assertEq(unstakingBalance_five, 303);
 
-        // check the lenght of the array is correct and the indexes have shifted
+        // check the length of the array is correct and the indexes have shifted
         vm.assertEq(foxStaking.getUnstakingRequestCount(user), 1);
         vm.assertEq(
             foxStaking.getUnstakingRequest(user, 0).unstakingBalance,

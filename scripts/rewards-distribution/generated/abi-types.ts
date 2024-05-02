@@ -35,6 +35,37 @@ export const foxStakingV1Abi = [
   {
     type: "function",
     inputs: [
+      { name: "account", internalType: "address", type: "address" },
+      { name: "index", internalType: "uint256", type: "uint256" },
+    ],
+    name: "getUnstakingInfo",
+    outputs: [
+      {
+        name: "",
+        internalType: "struct UnstakingInfo",
+        type: "tuple",
+        components: [
+          {
+            name: "unstakingBalance",
+            internalType: "uint256",
+            type: "uint256",
+          },
+          { name: "cooldownExpiry", internalType: "uint256", type: "uint256" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    inputs: [{ name: "account", internalType: "address", type: "address" }],
+    name: "getUnstakingInfoCount",
+    outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    inputs: [
       { name: "foxTokenAddress", internalType: "address", type: "address" },
     ],
     name: "initialize",
@@ -130,7 +161,6 @@ export const foxStakingV1Abi = [
     outputs: [
       { name: "stakingBalance", internalType: "uint256", type: "uint256" },
       { name: "unstakingBalance", internalType: "uint256", type: "uint256" },
-      { name: "cooldownExpiry", internalType: "uint256", type: "uint256" },
       { name: "runeAddress", internalType: "string", type: "string" },
     ],
     stateMutability: "view",
@@ -207,6 +237,13 @@ export const foxStakingV1Abi = [
     name: "version",
     outputs: [{ name: "", internalType: "uint256", type: "uint256" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    inputs: [{ name: "index", internalType: "uint256", type: "uint256" }],
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",
@@ -342,6 +379,12 @@ export const foxStakingV1Abi = [
       },
       {
         name: "amount",
+        internalType: "uint256",
+        type: "uint256",
+        indexed: false,
+      },
+      {
+        name: "cooldownExpiry",
         internalType: "uint256",
         type: "uint256",
         indexed: false,

@@ -44,7 +44,7 @@ contract FOXStakingTestWithdraw is Test {
 
         vm.startPrank(user);
         vm.expectRevert("Withdrawals are paused"); // Make sure this matches the actual revert message used in your contract
-        foxStaking.withdraw();
+        foxStaking.withdraw(0);
         vm.stopPrank();
     }
 
@@ -55,7 +55,7 @@ contract FOXStakingTestWithdraw is Test {
         vm.expectRevert(
             abi.encodeWithSelector(Pausable.EnforcedPause.selector)
         );
-        foxStaking.withdraw();
+        foxStaking.withdraw(0);
         vm.stopPrank();
     }
 
@@ -65,7 +65,6 @@ contract FOXStakingTestWithdraw is Test {
         (
             uint256 stakingBalance_before,
             uint256 unstakingBalance_before,
-            ,
 
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_before + unstakingBalance_before, 1000);
@@ -94,7 +93,6 @@ contract FOXStakingTestWithdraw is Test {
         (
             uint256 stakingBalance_after,
             uint256 unstakingBalance_after,
-            ,
 
         ) = foxStaking.stakingInfo(user);
         vm.assertEq(stakingBalance_after + unstakingBalance_after, 0);
@@ -160,7 +158,7 @@ contract FOXStakingTestWithdraw is Test {
         vm.warp(block.timestamp + 28 days);
 
         // Try to withdraw 0
-        vm.expectRevert("Cannot withdraw 0");
+        vm.expectRevert("No unstaking requests found");
         foxStaking.withdraw();
 
         // Check user wallet balance of FOX is still 0

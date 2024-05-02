@@ -8,6 +8,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {StakingInfo} from "./StakingInfo.sol";
+import {UnstakingRequest} from "./UnstakingRequest.sol";
 
 contract FoxStakingV1 is
     Initializable,
@@ -29,7 +30,11 @@ contract FoxStakingV1 is
         uint256 amount,
         string indexed runeAddress
     );
-    event Unstake(address indexed account, uint256 amount);
+    event Unstake(
+        address indexed account,
+        uint256 amount,
+        uint256 cooldownExpiry
+    );
     event Withdraw(address indexed account, uint256 amount);
     event SetRuneAddress(
         address indexed account,
@@ -162,23 +167,81 @@ contract FoxStakingV1 is
         info.stakingBalance -= amount;
         info.unstakingBalance += amount;
 
-        // Set or update the cooldown period
-        info.cooldownExpiry = block.timestamp + cooldownPeriod;
+        UnstakingRequest memory unstakingRequest = UnstakingRequest({
+            unstakingBalance: amount,
+            cooldownExpiry: block.timestamp + cooldownPeriod
+        });
 
-        emit Unstake(msg.sender, amount);
+        info.unstakingRequests.push(unstakingRequest); // append to the end of unstakingRequests array
+
+        emit Unstake(msg.sender, amount, unstakingRequest.cooldownExpiry);
     }
 
-    /// @notice Withdraws FOX tokens - assuming there's anything to withdraw and unstake cooldown period has completed - else reverts
-    /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    function withdraw() external whenNotPaused whenWithdrawalsNotPaused {
+    /// @notice Allows a user to withdraw a specified claim by index
+    /// @param index The index of the claim to withdraw
+    function withdraw(
+        uint256 index
+    ) public whenNotPaused whenWithdrawalsNotPaused {
         StakingInfo storage info = stakingInfo[msg.sender];
+        require(
+            info.unstakingRequests.length > 0,
+            "No unstaking requests found"
+        );
 
-        require(info.unstakingBalance > 0, "Cannot withdraw 0");
-        require(block.timestamp >= info.cooldownExpiry, "Not cooled down yet");
-        uint256 withdrawAmount = info.unstakingBalance;
-        info.unstakingBalance = 0;
-        foxToken.safeTransfer(msg.sender, withdrawAmount);
-        emit Withdraw(msg.sender, withdrawAmount);
+        require(info.unstakingRequests.length > index, "invalid index");
+
+        UnstakingRequest memory unstakingRequest = info.unstakingRequests[
+            index
+        ];
+
+        require(
+            block.timestamp >= unstakingRequest.cooldownExpiry,
+            "Not cooled down yet"
+        );
+
+        if (info.unstakingRequests.length > 1) {
+            // we have more elements in the array, so shift the last element to the index being withdrawn
+            // and then shorten the array by 1
+            info.unstakingRequests[index] = info.unstakingRequests[
+                info.unstakingRequests.length - 1
+            ];
+            info.unstakingRequests.pop();
+        } else {
+            // the array is done, we can delete the whole thing
+            delete info.unstakingRequests;
+        }
+        info.unstakingBalance -= unstakingRequest.unstakingBalance;
+        foxToken.safeTransfer(msg.sender, unstakingRequest.unstakingBalance);
+        emit Withdraw(msg.sender, unstakingRequest.unstakingBalance);
+    }
+
+    /// @notice processes the most recent unstaking request available to the user, else reverts.
+    function withdraw() external {
+        StakingInfo memory info = stakingInfo[msg.sender];
+        uint256 length = info.unstakingRequests.length;
+        require(length > 0, "No unstaking requests found");
+        uint256 indexToProcess;
+        uint256 earliestCooldownExpiry = type(uint256).max;
+
+        for (uint256 i; i < length; i++) {
+            UnstakingRequest memory unstakingRequest = info.unstakingRequests[
+                i
+            ];
+            if (block.timestamp >= unstakingRequest.cooldownExpiry) {
+                // this claim is ready to be processed
+                if (unstakingRequest.cooldownExpiry < earliestCooldownExpiry) {
+                    // we found a more recent claim we can process.
+                    earliestCooldownExpiry = unstakingRequest.cooldownExpiry;
+                    indexToProcess = i;
+                }
+            }
+        }
+
+        require(
+            earliestCooldownExpiry != type(uint256).max,
+            "Not cooled down yet"
+        );
+        withdraw(indexToProcess);
     }
 
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.
@@ -202,5 +265,25 @@ contract FoxStakingV1 is
     function balanceOf(address account) external view returns (uint256 total) {
         StakingInfo memory info = stakingInfo[account];
         return info.stakingBalance + info.unstakingBalance;
+    }
+
+    /// @notice helper function to access dynamic array nested in struct from external sources
+    /// @param account The address we're getting the unstaking request for.
+    /// @param index The index of the unstaking request array we're getting.
+    function getUnstakingRequest(
+        address account,
+        uint256 index
+    ) external view returns (UnstakingRequest memory) {
+        return stakingInfo[account].unstakingRequests[index];
+    }
+
+    /// @notice returns the numbery of ustaking request elements for a given address
+    /// @dev useful for off chain processing
+    /// @param account The address we're getting the unstaking info count for.
+    /// @return length The number of unstaking request elements.
+    function getUnstakingRequestCount(
+        address account
+    ) external view returns (uint256) {
+        return stakingInfo[account].unstakingRequests.length;
     }
 }

@@ -30,7 +30,7 @@ contract FOXStakingTestRuneAddress is Test {
 
         foxStaking.setRuneAddress(newRuneAddress);
 
-        (, , string memory runeAddress) = foxStaking.stakingInfo(user);
+        (, , , , string memory runeAddress) = foxStaking.stakingInfo(user);
         assertEq(
             runeAddress,
             newRuneAddress,

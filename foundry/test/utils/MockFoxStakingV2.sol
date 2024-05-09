@@ -8,6 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {StakingInfo} from "../../src/StakingInfo.sol";
 
@@ -16,7 +17,8 @@ contract MockFoxStakingV2 is
     Initializable,
     PausableUpgradeable,
     UUPSUpgradeable,
-    OwnableUpgradeable
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable
 {
     using SafeERC20 for IERC20;
     IERC20 public foxToken;
@@ -25,6 +27,13 @@ contract MockFoxStakingV2 is
     bool public withdrawalsPaused;
     bool public unstakingPaused;
     uint256 public cooldownPeriod;
+
+    uint256 public totalStaked;
+    uint256 public totalCoolingDown;
+
+    uint256 public constant REWARD_RATE = 1_000_000_000;
+    uint256 public lastUpdateTime;
+    uint256 public rewardPerTokenStored;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {

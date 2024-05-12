@@ -32,6 +32,7 @@ contract MockFoxStakingV2 is
     uint256 public totalCoolingDown;
 
     uint256 public constant REWARD_RATE = 1_000_000_000;
+    uint256 public constant WAD = 1e18;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 

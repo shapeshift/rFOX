@@ -29,7 +29,8 @@ contract FoxStakingV1 is
     uint256 public totalStaked;
     uint256 public totalCoolingDown;
 
-    uint256 constant public REWARD_RATE = 1_000_000_000;
+    uint256 public constant REWARD_RATE = 1_000_000_000;
+    uint256 public constant WAD = 1e18;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
@@ -151,16 +152,21 @@ contract FoxStakingV1 is
         if (totalStaked == 0) {
             return rewardPerTokenStored;
         }
-        return rewardPerTokenStored +  ((block.timestamp - lastUpdateTime) * REWARD_RATE * 1e18 / totalStaked);
+        return
+            rewardPerTokenStored +
+            (((block.timestamp - lastUpdateTime) * REWARD_RATE * 1e18) /
+                totalStaked);
     }
 
     /// Returns the total reward earnings associated with a given address.
     function earned(address account) public view returns (uint256) {
         StakingInfo memory info = stakingInfo[account];
-        return info.stakingBalance * (rewardPerToken() - info.rewardPerTokenPaid) / 1e18 + info.earnedRewards;
+        return
+            (info.stakingBalance *
+                (rewardPerToken() - info.rewardPerTokenPaid)) /
+            1e18 +
+            info.earnedRewards;
     }
-
-
 
     /// @notice Allows a user to stake a specified amount of FOX tokens and assign a RUNE address for rewards - which can be changed later on.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
@@ -169,7 +175,13 @@ contract FoxStakingV1 is
     function stake(
         uint256 amount,
         string memory runeAddress
-    ) external whenNotPaused whenStakingNotPaused updateReward(msg.sender) nonReentrant {
+    )
+        external
+        whenNotPaused
+        whenStakingNotPaused
+        updateReward(msg.sender)
+        nonReentrant
+    {
         require(
             bytes(runeAddress).length == 43,
             "Rune address must be 43 characters"
@@ -190,7 +202,13 @@ contract FoxStakingV1 is
     /// @param amount The amount of FOX tokens to be unstaked.
     function unstake(
         uint256 amount
-    ) external whenNotPaused whenUnstakingNotPaused updateReward(msg.sender) nonReentrant {
+    )
+        external
+        whenNotPaused
+        whenUnstakingNotPaused
+        updateReward(msg.sender)
+        nonReentrant
+    {
         require(amount > 0, "Cannot unstake 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 

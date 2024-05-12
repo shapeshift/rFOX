@@ -81,8 +81,6 @@ contract FOXStakingTestStaking is Test {
         foxStaking.stake(smallStakingAmount, runeAddressThree);
         uint256 blockTimeOfStaked = block.timestamp;
 
-       
-
         // right now all of their earned token amounts should be 0
         vm.assertEq(
             foxStaking.earned(userOne),
@@ -134,9 +132,21 @@ contract FOXStakingTestStaking is Test {
         vm.warp(block.timestamp + 1 days);
 
         // ensure the values have changed since the last time we checked
-        vm.assertNotEq(foxStaking.earned(userOne), userOneEarned, "UserOne should have earned more rewards");
-        vm.assertNotEq(foxStaking.earned(userTwo), userTwoEarned, "UserTwo should have earned more rewards");
-        vm.assertNotEq(foxStaking.earned(userThree), userThreeEarned, "UserThree should have earned more rewards");
+        vm.assertNotEq(
+            foxStaking.earned(userOne),
+            userOneEarned,
+            "UserOne should have earned more rewards"
+        );
+        vm.assertNotEq(
+            foxStaking.earned(userTwo),
+            userTwoEarned,
+            "UserTwo should have earned more rewards"
+        );
+        vm.assertNotEq(
+            foxStaking.earned(userThree),
+            userThreeEarned,
+            "UserThree should have earned more rewards"
+        );
 
         // all users have now been staked for 2 days. Lets remove one of the users and see if the rewards are calculated correctly
         userOneEarned = foxStaking.earned(userOne);
@@ -166,8 +176,11 @@ contract FOXStakingTestStaking is Test {
         );
 
         uint256 blockTimeStampAtEnd = block.timestamp;
-        vm.assertEq(blockTimeOfStaked + 4 days, blockTimeStampAtEnd, "time of staked should be the same as time of unstaked");
-
+        vm.assertEq(
+            blockTimeOfStaked + 4 days,
+            blockTimeStampAtEnd,
+            "time of staked should be the same as time of unstaked"
+        );
 
         // userOne should have earned rewards for 2 days, userTwo and userThree should have earned rewards for 4 days
         // rewards are constant... so userOne accumulated 1/3 per day staked of the daily amount, and then the other two recieved 1/2 the rewards
@@ -179,7 +192,7 @@ contract FOXStakingTestStaking is Test {
         userOneEarned = foxStaking.earned(userOne);
         userTwoEarned = foxStaking.earned(userTwo);
         userThreeEarned = foxStaking.earned(userThree);
-        
+
         vm.assertEq(
             userTwoEarned,
             userThreeEarned,
@@ -187,9 +200,57 @@ contract FOXStakingTestStaking is Test {
         );
 
         vm.assertEq(
-            userOneEarned * 5 / 2,
+            (userOneEarned * 5) / 2,
             userTwoEarned,
             "UserOne should have 2/3 of the rewards of UserTwo"
         );
+    }
+
+    function testRewardAmountsForPrecision() public {
+        // the worse scenario for precision is when we have 
+        // a large amount of fox tokens staked, a small staker, and very little time passed
+        // we should confirm that they still recieve expected rewards when.
+
+        // create mega whale 
+        uint256 megaWhaleAmount = 900_000_000 * 1e18; // 900 million FOX tokens with 18 decimals
+        foxToken.makeItRain(userOne, megaWhaleAmount);
+
+        vm.prank(userOne);
+        foxToken.approve(address(foxStaking), megaWhaleAmount);
+        vm.prank(userOne);
+        foxStaking.stake(megaWhaleAmount, runeAddressOne);
+                
+        uint256 smallStakingAmount = 1 * 1e18; // 1 FOX token with 18 decimals
+        vm.prank(userTwo);
+        foxStaking.stake(smallStakingAmount, runeAddressTwo);
+
+        // advance time by 1 sec
+        vm.warp(block.timestamp + 1);
+        uint256 userTwoEarned = foxStaking.earned(userTwo);
+
+        // ensure that the small staker rewards aren't rounded down to 0 for a second of staking.
+        vm.assertNotEq(
+            userTwoEarned,
+            0,
+            "UserTwo should have earned rewards"
+        );
+        
+    }
+
+    function testRewardAmountsForOverFlow() public {
+        // create mega whale 
+        uint256 megaWhaleAmount = 900_000_000 * 1e18; // 900 million FOX tokens with 18 decimals
+        foxToken.makeItRain(userOne, megaWhaleAmount);
+
+        vm.prank(userOne);
+        foxToken.approve(address(foxStaking), megaWhaleAmount);
+        vm.prank(userOne);
+        foxStaking.stake(megaWhaleAmount, runeAddressOne);
+                
+        // advance time by 15 years
+        vm.warp(block.timestamp + 365 * 15 days) ;
+        
+        // ensure this does not overflow
+        foxStaking.earned(userOne);        
     }
 }

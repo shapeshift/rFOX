@@ -139,7 +139,7 @@ contract FoxStakingV1 is
         lastUpdateTime = block.timestamp;
         StakingInfo storage info = stakingInfo[account];
         info.earnedRewards = earned(account);
-        info.rewardPerTokenPaid = rewardPerTokenStored;
+        info.rewardPerTokenStored = rewardPerTokenStored;
         _;
     }
 
@@ -168,7 +168,7 @@ contract FoxStakingV1 is
         StakingInfo memory info = stakingInfo[account];
         return
             (info.stakingBalance *
-                (rewardPerToken() - info.rewardPerTokenPaid)) /
+                (rewardPerToken() - info.rewardPerTokenStored)) /
             1e18 +
             info.earnedRewards;
     }

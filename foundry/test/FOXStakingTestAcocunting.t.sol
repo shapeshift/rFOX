@@ -252,7 +252,7 @@ contract FOXStakingTestStaking is Test {
     function testRewardAmountsWithUnstakes() public {
         // store userOne's balance before staking
         uint256 userOneBalance = foxToken.balanceOf(userOne);
-        
+
         // stake 100 FOX tokens for each user
         uint256 stakingAmount = 100 * 1e18; // 100 FOX token with 18 decimals
         vm.prank(userOne);
@@ -284,15 +284,14 @@ contract FOXStakingTestStaking is Test {
         );
 
         // userOne should have no staking balance
-        (
-            uint256 stakingBalance,
-            ,
-            uint256 earnedRewards,
-            ,
-
-        ) = foxStaking.stakingInfo(userOne);
+        (uint256 stakingBalance, , uint256 earnedRewards, , ) = foxStaking
+            .stakingInfo(userOne);
         vm.assertEq(stakingBalance, 0, "UserOne should have no stakingBalance");
-        vm.assertEq(userOneEarned, earnedRewards, "UserOne should have the same earnedRewards from when the unstaked");
+        vm.assertEq(
+            userOneEarned,
+            earnedRewards,
+            "UserOne should have the same earnedRewards from when the unstaked"
+        );
 
         // confirm that userTwo and userThree have earned the same and correct amount of rewards
         uint256 userTwoEarned = foxStaking.earned(userTwo);
@@ -307,14 +306,14 @@ contract FOXStakingTestStaking is Test {
         // so userOne = 10/3rds
         // userTwo = 10/3rds + 30/2nds = 55/3rds
         // userThree = 10/3rds + 30/2nds = 55/3rds
-        uint256 expectedUserTwoEarned = userOneEarned * 55 / 10;
+        uint256 expectedUserTwoEarned = (userOneEarned * 55) / 10;
         vm.assertEq(
             userTwoEarned,
             expectedUserTwoEarned,
             "UserTwo should have the correct amount of rewards"
         );
 
-        // now if we have userOne restake, they should recieved the same rewards as userTwo and userThree from now on. 
+        // now if we have userOne restake, they should recieved the same rewards as userTwo and userThree from now on.
         // dev note: this is also similiar to how we can do the off chain accounting essentially a snapshot at start of epoch, and then at the end of the epoch
         // time warp 10 days and store all balances, like a new epoch
         vm.warp(block.timestamp + 10 days);
@@ -331,7 +330,7 @@ contract FOXStakingTestStaking is Test {
         uint256 userOneDelta = foxStaking.earned(userOne) - userOneEarned;
         uint256 userTwoDelta = foxStaking.earned(userTwo) - userTwoEarned;
         uint256 userThreeDelta = foxStaking.earned(userThree) - userThreeEarned;
-        
+
         vm.assertEq(
             userOneDelta,
             userTwoDelta,
@@ -342,11 +341,9 @@ contract FOXStakingTestStaking is Test {
             userThreeDelta,
             "UserTwo and UserThree should have the same rewards"
         );
-
     }
 
     function testRewardAmountsWithMultipleUnstakes() public {
-       
         // stake 100 FOX tokens for each user
         uint256 stakingAmount = 100 * 1e18; // 100 FOX token with 18 decimals
         vm.prank(userOne);
@@ -372,15 +369,9 @@ contract FOXStakingTestStaking is Test {
         foxStaking.withdraw();
 
         // userOne should have no staking balance
-        (
-            uint256 stakingBalance,
-            ,
-            ,
-            ,
-
-        ) = foxStaking.stakingInfo(userOne);
+        (uint256 stakingBalance, , , , ) = foxStaking.stakingInfo(userOne);
         vm.assertEq(stakingBalance, 0, "UserOne should have no stakingBalance");
-        
+
         // confirm that userTwo and userThree have earned the same and correct amount of rewards
         uint256 userOneEarned = foxStaking.earned(userOne);
         uint256 userTwoEarned = foxStaking.earned(userTwo);
@@ -395,8 +386,8 @@ contract FOXStakingTestStaking is Test {
         // 10/3 + 50/5 = 16/3
 
         // userTwo recieved 1/3 of the rewards for 10 days (10/3) and then 2/5 (200/5) for another 10 days, and finally 1/2 (18/2) for 18 days
-        // 10/3 + 20/5 + 18/2 = 49/3       
-        uint256 expectedUserTwoEarned =  userOneEarned * 49 / 16;
+        // 10/3 + 20/5 + 18/2 = 49/3
+        uint256 expectedUserTwoEarned = (userOneEarned * 49) / 16;
         vm.assertEq(
             userTwoEarned,
             expectedUserTwoEarned,

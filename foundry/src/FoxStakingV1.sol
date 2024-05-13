@@ -133,6 +133,7 @@ contract FoxStakingV1 is
         _;
     }
 
+    /// @notice Updates all variables when changes to staking amounts are made.
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = block.timestamp;
@@ -142,12 +143,14 @@ contract FoxStakingV1 is
         _;
     }
 
+    /// @notice Sets the cooldown period for unstaking requests.
+    /// @param newCooldownPeriod The new cooldown period to be set.
     function setCooldownPeriod(uint256 newCooldownPeriod) external onlyOwner {
         cooldownPeriod = newCooldownPeriod;
         emit UpdateCooldownPeriod(newCooldownPeriod);
     }
 
-    /// Returns the current amount of reward allocated per staked token.
+    /// @notice Returns the current amount of reward allocated per staked token.
     function rewardPerToken() public view returns (uint256) {
         if (totalStaked == 0) {
             return rewardPerTokenStored;
@@ -158,7 +161,9 @@ contract FoxStakingV1 is
                 totalStaked);
     }
 
-    /// Returns the total reward earnings associated with a given address.
+    /// Returns the total reward earnings associated with a given address for its
+    /// entire lifetime of staking.
+    /// @param account The address we're getting the earned rewards for.
     function earned(address account) public view returns (uint256) {
         StakingInfo memory info = stakingInfo[account];
         return

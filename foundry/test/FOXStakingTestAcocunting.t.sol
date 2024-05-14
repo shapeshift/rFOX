@@ -195,7 +195,7 @@ contract FOXStakingTestStaking is Test {
         );
 
         // userOne should have earned rewards for 2 days, userTwo and userThree should have earned rewards for 4 days
-        // rewards are constant... so userOne accumulated 1/3 per day staked of the daily amount, and then the other two recieved 1/2 the rewards
+        // rewards are constant... so userOne accumulated 1/3 per day staked of the daily amount, and then the other two received 1/2 the rewards
         // over the subsequent 2 days.
         // userOne Total = 1/3 + 1/3 = 2/3 total
         // userTwo Total = 1/3 + 1/3 + 1/2 + 1/2 = 5/3 total
@@ -314,7 +314,7 @@ contract FOXStakingTestStaking is Test {
             "UserTwo and UserThree should have the same rewards"
         );
 
-        // userOne recieved 1/3 of the rewards for 10 days, userTwo and userThree recieved 2/3 of the rewards for 10 days, plus 1/2 the rewards for 30 days
+        // userOne received 1/3 of the rewards for 10 days, userTwo and userThree received 2/3 of the rewards for 10 days, plus 1/2 the rewards for 30 days
         // so userOne = 10/3rds
         // userTwo = 10/3rds + 30/2nds = 55/3rds
         // userThree = 10/3rds + 30/2nds = 55/3rds
@@ -325,7 +325,7 @@ contract FOXStakingTestStaking is Test {
             "UserTwo should have the correct amount of rewards"
         );
 
-        // now if we have userOne restake, they should recieved the same rewards as userTwo and userThree from now on.
+        // now if we have userOne restake, they should received the same rewards as userTwo and userThree from now on.
         // dev note: this is also similiar to how we can do the off chain accounting essentially a snapshot at start of epoch, and then at the end of the epoch
         // time warp 10 days and store all balances, like a new epoch
         vm.warp(block.timestamp + 10 days);
@@ -337,7 +337,7 @@ contract FOXStakingTestStaking is Test {
         vm.prank(userOne);
         foxStaking.stake(stakingAmount, runeAddressOne);
 
-        // time warp 10 days. All users should have recieved the same amount of rewards since the last time we checked
+        // time warp 10 days. All users should have received the same amount of rewards since the last time we checked
         vm.warp(block.timestamp + 10 days);
         uint256 userOneDelta = foxStaking.earned(userOne) - userOneEarned;
         uint256 userTwoDelta = foxStaking.earned(userTwo) - userTwoEarned;
@@ -394,10 +394,10 @@ contract FOXStakingTestStaking is Test {
             "UserTwo and UserThree should have the same rewards"
         );
 
-        // userOne recieved 1/3 of the rewards for 10 days (10/3) and then 1/5 (50/5) for another 10 days
+        // userOne received 1/3 of the rewards for 10 days (10/3) and then 1/5 (50/5) for another 10 days
         // 10/3 + 50/5 = 16/3
 
-        // userTwo recieved 1/3 of the rewards for 10 days (10/3) and then 2/5 (200/5) for another 10 days, and finally 1/2 (18/2) for 18 days
+        // userTwo received 1/3 of the rewards for 10 days (10/3) and then 2/5 (200/5) for another 10 days, and finally 1/2 (18/2) for 18 days
         // 10/3 + 20/5 + 18/2 = 49/3
         uint256 expectedUserTwoEarned = (userOneEarned * 49) / 16;
         vm.assertEq(

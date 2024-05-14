@@ -157,7 +157,7 @@ contract FoxStakingV1 is
         }
         return
             rewardPerTokenStored +
-            (((block.timestamp - lastUpdateTime) * REWARD_RATE * 1e18) /
+            (((block.timestamp - lastUpdateTime) * REWARD_RATE * WAD) /
                 totalStaked);
     }
 
@@ -169,7 +169,7 @@ contract FoxStakingV1 is
         return
             (info.stakingBalance *
                 (rewardPerToken() - info.rewardPerTokenStored)) /
-            1e18 +
+            WAD +
             info.earnedRewards;
     }
 

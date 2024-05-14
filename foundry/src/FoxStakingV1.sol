@@ -62,11 +62,7 @@ contract FoxStakingV1 is
         __UUPSUpgradeable_init();
         __Pausable_init();
         foxToken = IERC20(foxTokenAddress);
-        stakingPaused = false;
-        withdrawalsPaused = false;
-        unstakingPaused = false;
         cooldownPeriod = 28 days;
-        rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = block.timestamp;
     }
 

@@ -175,6 +175,18 @@ contract FOXStakingTestStaking is Test {
             "UserOne should have the same earned rewards after unstaking"
         );
 
+        // userTwo and userThree should have earned rewards for 4 days
+        vm.assertNotEq(
+            foxStaking.earned(userTwo),
+            userTwoEarned,
+            "UserTwo should have earned more rewards"
+        );
+        vm.assertNotEq(
+            foxStaking.earned(userThree),
+            userThreeEarned,
+            "UserThree should have earned more rewards"
+        );
+
         uint256 blockTimeStampAtEnd = block.timestamp;
         vm.assertEq(
             blockTimeOfStaked + 4 days,

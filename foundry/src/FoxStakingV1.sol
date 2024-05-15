@@ -129,16 +129,6 @@ contract FoxStakingV1 is
         _;
     }
 
-    /// @notice Updates all variables when changes to staking amounts are made.
-    modifier updateReward(address account) {
-        rewardPerTokenStored = rewardPerToken();
-        lastUpdateTime = block.timestamp;
-        StakingInfo storage info = stakingInfo[account];
-        info.earnedRewards = earned(account);
-        info.rewardPerTokenStored = rewardPerTokenStored;
-        _;
-    }
-
     /// @notice Sets the cooldown period for unstaking requests.
     /// @param newCooldownPeriod The new cooldown period to be set.
     function setCooldownPeriod(uint256 newCooldownPeriod) external onlyOwner {
@@ -180,14 +170,14 @@ contract FoxStakingV1 is
         external
         whenNotPaused
         whenStakingNotPaused
-        updateReward(msg.sender)
         nonReentrant
-    {
+    {        
         require(
             bytes(runeAddress).length == 43,
             "Rune address must be 43 characters"
         );
         require(amount > 0, "FOX amount to stake must be greater than 0");
+        updateReward(msg.sender);
         foxToken.safeTransferFrom(msg.sender, address(this), amount);
 
         StakingInfo storage info = stakingInfo[msg.sender];
@@ -207,7 +197,6 @@ contract FoxStakingV1 is
         external
         whenNotPaused
         whenUnstakingNotPaused
-        updateReward(msg.sender)
         nonReentrant
     {
         require(amount > 0, "Cannot unstake 0");
@@ -218,6 +207,7 @@ contract FoxStakingV1 is
             amount <= info.stakingBalance,
             "Unstake amount exceeds staked balance"
         );
+        updateReward(msg.sender);
 
         // Set staking / unstaking amounts
         info.stakingBalance -= amount;
@@ -344,5 +334,15 @@ contract FoxStakingV1 is
         address account
     ) external view returns (uint256) {
         return stakingInfo[account].unstakingRequests.length;
+    }
+
+     /// @notice Updates all variables when changes to staking amounts are made.
+     /// @param account The address of the account to update.
+    function updateReward(address account) internal {
+        rewardPerTokenStored = rewardPerToken();
+        lastUpdateTime = block.timestamp;
+        StakingInfo storage info = stakingInfo[account];
+        info.earnedRewards = earned(account);
+        info.rewardPerTokenStored = rewardPerTokenStored;
     }
 }

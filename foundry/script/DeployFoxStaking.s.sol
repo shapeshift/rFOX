@@ -4,9 +4,9 @@ pragma solidity ^0.8.25;
 import "forge-std/Script.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {FoxStakingV1} from "../src/FoxStakingV1.sol";
+import {StakingV1} from "../src/StakingV1.sol";
 
-contract DeployFoxStaking is Script {
+contract DeployStaking is Script {
     address foxTokenAddress;
 
     function setUp() public {
@@ -16,8 +16,8 @@ contract DeployFoxStaking is Script {
     function run() public {
         vm.startBroadcast();
         address foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStakingV1.sol",
-            abi.encodeCall(FoxStakingV1.initialize, (foxTokenAddress))
+            "StakingV1.sol",
+            abi.encodeCall(StakingV1.initialize, (foxTokenAddress))
         );
         vm.stopBroadcast();
         console.log("Contract deployed at:", foxStakingProxy);

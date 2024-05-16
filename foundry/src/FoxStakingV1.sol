@@ -31,7 +31,7 @@ contract FoxStakingV1 is
 
     uint256 public constant REWARD_RATE = 1_000_000_000;
     uint256 public constant WAD = 1e18;
-    uint256 public lastUpdateTime;
+    uint256 public lastUpdateTimestamp;
     uint256 public rewardPerTokenStored;
 
     event UpdateCooldownPeriod(uint256 newCooldownPeriod);
@@ -63,7 +63,7 @@ contract FoxStakingV1 is
         __Pausable_init();
         foxToken = IERC20(foxTokenAddress);
         cooldownPeriod = 28 days;
-        lastUpdateTime = block.timestamp;
+        lastUpdateTimestamp = block.timestamp;
     }
 
     function _authorizeUpgrade(
@@ -143,11 +143,10 @@ contract FoxStakingV1 is
         }
         return
             rewardPerTokenStored +
-            (((block.timestamp - lastUpdateTime) * REWARD_RATE * WAD) /
+            (((block.timestamp - lastUpdateTimestamp) * REWARD_RATE * WAD) /
                 totalStaked);
     }
 
-    
     /// @notice Returns the total reward earnings associated with a given address for its entire lifetime of staking.
     /// @param account The address we're getting the earned rewards for.
     function earned(address account) public view returns (uint256) {
@@ -330,7 +329,7 @@ contract FoxStakingV1 is
     /// @param account The address of the account to update.
     function updateReward(address account) internal {
         rewardPerTokenStored = rewardPerToken();
-        lastUpdateTime = block.timestamp;
+        lastUpdateTimestamp = block.timestamp;
         StakingInfo storage info = stakingInfo[account];
         info.earnedRewards = earned(account);
         info.rewardPerTokenStored = rewardPerTokenStored;

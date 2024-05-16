@@ -147,8 +147,8 @@ contract FoxStakingV1 is
                 totalStaked);
     }
 
-    /// Returns the total reward earnings associated with a given address for its
-    /// entire lifetime of staking.
+    
+    /// @notice Returns the total reward earnings associated with a given address for its entire lifetime of staking.
     /// @param account The address we're getting the earned rewards for.
     function earned(address account) public view returns (uint256) {
         StakingInfo memory info = stakingInfo[account];
@@ -166,12 +166,7 @@ contract FoxStakingV1 is
     function stake(
         uint256 amount,
         string memory runeAddress
-    )
-        external
-        whenNotPaused
-        whenStakingNotPaused
-        nonReentrant
-    {        
+    ) external whenNotPaused whenStakingNotPaused nonReentrant {
         require(
             bytes(runeAddress).length == 43,
             "Rune address must be 43 characters"
@@ -193,12 +188,7 @@ contract FoxStakingV1 is
     /// @param amount The amount of FOX tokens to be unstaked.
     function unstake(
         uint256 amount
-    )
-        external
-        whenNotPaused
-        whenUnstakingNotPaused
-        nonReentrant
-    {
+    ) external whenNotPaused whenUnstakingNotPaused nonReentrant {
         require(amount > 0, "Cannot unstake 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 
@@ -336,8 +326,8 @@ contract FoxStakingV1 is
         return stakingInfo[account].unstakingRequests.length;
     }
 
-     /// @notice Updates all variables when changes to staking amounts are made.
-     /// @param account The address of the account to update.
+    /// @notice Updates all variables when changes to staking amounts are made.
+    /// @param account The address of the account to update.
     function updateReward(address account) internal {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = block.timestamp;

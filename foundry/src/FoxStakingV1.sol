@@ -7,6 +7,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {StakingInfo} from "./StakingInfo.sol";
 import {UnstakingRequest} from "./UnstakingRequest.sol";
 
@@ -14,7 +15,8 @@ contract FoxStakingV1 is
     Initializable,
     PausableUpgradeable,
     UUPSUpgradeable,
-    OwnableUpgradeable
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable
 {
     using SafeERC20 for IERC20;
     IERC20 public foxToken;
@@ -23,6 +25,14 @@ contract FoxStakingV1 is
     bool public withdrawalsPaused;
     bool public unstakingPaused;
     uint256 public cooldownPeriod;
+
+    uint256 public totalStaked;
+    uint256 public totalCoolingDown;
+
+    uint256 public constant REWARD_RATE = 1_000_000_000;
+    uint256 public constant WAD = 1e18;
+    uint256 public lastUpdateTimestamp;
+    uint256 public rewardPerTokenStored;
 
     event UpdateCooldownPeriod(uint256 newCooldownPeriod);
     event Stake(
@@ -52,10 +62,8 @@ contract FoxStakingV1 is
         __UUPSUpgradeable_init();
         __Pausable_init();
         foxToken = IERC20(foxTokenAddress);
-        stakingPaused = false;
-        withdrawalsPaused = false;
-        unstakingPaused = false;
         cooldownPeriod = 28 days;
+        lastUpdateTimestamp = block.timestamp;
     }
 
     function _authorizeUpgrade(
@@ -121,9 +129,33 @@ contract FoxStakingV1 is
         _;
     }
 
+    /// @notice Sets the cooldown period for unstaking requests.
+    /// @param newCooldownPeriod The new cooldown period to be set.
     function setCooldownPeriod(uint256 newCooldownPeriod) external onlyOwner {
         cooldownPeriod = newCooldownPeriod;
         emit UpdateCooldownPeriod(newCooldownPeriod);
+    }
+
+    /// @notice Returns the current amount of reward allocated per staked token.
+    function rewardPerToken() public view returns (uint256) {
+        if (totalStaked == 0) {
+            return rewardPerTokenStored;
+        }
+        return
+            rewardPerTokenStored +
+            (((block.timestamp - lastUpdateTimestamp) * REWARD_RATE * WAD) /
+                totalStaked);
+    }
+
+    /// @notice Returns the total reward earnings associated with a given address for its entire lifetime of staking.
+    /// @param account The address we're getting the earned rewards for.
+    function earned(address account) public view returns (uint256) {
+        StakingInfo memory info = stakingInfo[account];
+        return
+            (info.stakingBalance *
+                (rewardPerToken() - info.rewardPerTokenStored)) /
+            WAD +
+            info.earnedRewards;
     }
 
     /// @notice Allows a user to stake a specified amount of FOX tokens and assign a RUNE address for rewards - which can be changed later on.
@@ -133,17 +165,19 @@ contract FoxStakingV1 is
     function stake(
         uint256 amount,
         string memory runeAddress
-    ) external whenNotPaused whenStakingNotPaused {
+    ) external whenNotPaused whenStakingNotPaused nonReentrant {
         require(
             bytes(runeAddress).length == 43,
             "Rune address must be 43 characters"
         );
         require(amount > 0, "FOX amount to stake must be greater than 0");
+        updateReward(msg.sender);
         foxToken.safeTransferFrom(msg.sender, address(this), amount);
 
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
         info.runeAddress = runeAddress;
+        totalStaked += amount;
 
         emit Stake(msg.sender, amount, runeAddress);
     }
@@ -153,7 +187,7 @@ contract FoxStakingV1 is
     /// @param amount The amount of FOX tokens to be unstaked.
     function unstake(
         uint256 amount
-    ) external whenNotPaused whenUnstakingNotPaused {
+    ) external whenNotPaused whenUnstakingNotPaused nonReentrant {
         require(amount > 0, "Cannot unstake 0");
         StakingInfo storage info = stakingInfo[msg.sender];
 
@@ -162,10 +196,13 @@ contract FoxStakingV1 is
             amount <= info.stakingBalance,
             "Unstake amount exceeds staked balance"
         );
+        updateReward(msg.sender);
 
         // Set staking / unstaking amounts
         info.stakingBalance -= amount;
         info.unstakingBalance += amount;
+        totalStaked -= amount;
+        totalCoolingDown += amount;
 
         UnstakingRequest memory unstakingRequest = UnstakingRequest({
             unstakingBalance: amount,
@@ -181,7 +218,7 @@ contract FoxStakingV1 is
     /// @param index The index of the claim to withdraw
     function withdraw(
         uint256 index
-    ) public whenNotPaused whenWithdrawalsNotPaused {
+    ) public whenNotPaused whenWithdrawalsNotPaused nonReentrant {
         StakingInfo storage info = stakingInfo[msg.sender];
         require(
             info.unstakingRequests.length > 0,
@@ -211,6 +248,7 @@ contract FoxStakingV1 is
             delete info.unstakingRequests;
         }
         info.unstakingBalance -= unstakingRequest.unstakingBalance;
+        totalCoolingDown -= unstakingRequest.unstakingBalance;
         foxToken.safeTransfer(msg.sender, unstakingRequest.unstakingBalance);
         emit Withdraw(msg.sender, unstakingRequest.unstakingBalance);
     }
@@ -285,5 +323,15 @@ contract FoxStakingV1 is
         address account
     ) external view returns (uint256) {
         return stakingInfo[account].unstakingRequests.length;
+    }
+
+    /// @notice Updates all variables when changes to staking amounts are made.
+    /// @param account The address of the account to update.
+    function updateReward(address account) internal {
+        rewardPerTokenStored = rewardPerToken();
+        lastUpdateTimestamp = block.timestamp;
+        StakingInfo storage info = stakingInfo[account];
+        info.earnedRewards = earned(account);
+        info.rewardPerTokenStored = rewardPerTokenStored;
     }
 }

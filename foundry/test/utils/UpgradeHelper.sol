@@ -3,8 +3,8 @@ pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {FoxStakingV1} from "../../src/FoxStakingV1.sol";
-import {MockFoxStakingV2} from "./MockFoxStakingV2.sol";
+import {StakingV1} from "../../src/StakingV1.sol";
+import {MockStakingV2} from "./MockStakingV2.sol";
 
 contract UpgradeHelper is Test {
     /// @dev Wrapper to perform upgrades pranking the owner. Required to make revert reasons
@@ -15,8 +15,8 @@ contract UpgradeHelper is Test {
         vm.startPrank(prankOwner);
         Upgrades.upgradeProxy(
             proxy,
-            "MockFoxStakingV2.sol:MockFoxStakingV2",
-            abi.encodeCall(MockFoxStakingV2.initialize, ())
+            "MockStakingV2.sol:MockStakingV2",
+            abi.encodeCall(MockStakingV2.initialize, ())
         );
         vm.stopPrank;
     }

@@ -4,18 +4,18 @@ pragma solidity ^0.8.25;
 import "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {FoxStakingV1} from "../src/FoxStakingV1.sol";
+import {StakingV1} from "../src/StakingV1.sol";
 import {MockFOXToken} from "./utils/MockFOXToken.sol";
-import {MockFoxStakingV2} from "./utils/MockFoxStakingV2.sol";
+import {MockStakingV2} from "./utils/MockStakingV2.sol";
 import {UpgradeHelper} from "./utils/UpgradeHelper.sol";
 
 contract FoxStakingTestUpgrades is Test {
     address public owner = address(0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045);
     address public foxStakingProxy;
-    FoxStakingV1 public foxStakingV1;
+    StakingV1 public foxStakingV1;
     MockFOXToken public foxToken;
 
-    // NOTE: Do NOT use the FoxStakingTestDeployer, we're testing actual upgrades without the code
+    // NOTE: Do NOT use the StakingTestDeployer, we're testing actual upgrades without the code
     // coverage workaround here.
     UpgradeHelper public upgradeHelper;
 
@@ -25,12 +25,12 @@ contract FoxStakingTestUpgrades is Test {
 
         vm.startPrank(owner);
         foxStakingProxy = Upgrades.deployUUPSProxy(
-            "FoxStakingV1.sol",
-            abi.encodeCall(FoxStakingV1.initialize, (address(foxToken)))
+            "StakingV1.sol",
+            abi.encodeCall(StakingV1.initialize, (address(foxToken)))
         );
         vm.stopPrank();
 
-        foxStakingV1 = FoxStakingV1(foxStakingProxy);
+        foxStakingV1 = StakingV1(foxStakingProxy);
     }
 
     function testDeployerIsOwner() public view {
@@ -44,15 +44,15 @@ contract FoxStakingTestUpgrades is Test {
 
         // Check we cannot call the new function
         vm.expectRevert();
-        MockFoxStakingV2 fakeUpgradedFoxStakingV1 = MockFoxStakingV2(
+        MockStakingV2 fakeUpgradedStakingV1 = MockStakingV2(
             address(foxStakingV1)
         );
-        fakeUpgradedFoxStakingV1.newV2Function();
+        fakeUpgradedStakingV1.newV2Function();
 
         // Perform the upgrade
         upgradeHelper.doUpgrade(owner, foxStakingProxy);
 
-        MockFoxStakingV2 foxStakingV2 = MockFoxStakingV2(foxStakingProxy);
+        MockStakingV2 foxStakingV2 = MockStakingV2(foxStakingProxy);
 
         // Check the new version
         uint256 expectedUpgradedVersion = 2;

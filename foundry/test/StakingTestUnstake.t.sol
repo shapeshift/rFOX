@@ -3,13 +3,13 @@ pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {FoxStakingV1} from "../src/FoxStakingV1.sol";
+import {StakingV1} from "../src/StakingV1.sol";
 import {MockFOXToken} from "./utils/MockFOXToken.sol";
-import {FoxStakingTestDeployer} from "./utils/FoxStakingTestDeployer.sol";
+import {StakingTestDeployer} from "./utils/StakingTestDeployer.sol";
 
 contract FOXStakingTestUnstake is Test {
-    FoxStakingTestDeployer public deployer;
-    FoxStakingV1 public foxStaking;
+    StakingTestDeployer public deployer;
+    StakingV1 public foxStaking;
     MockFOXToken public foxToken;
     address user = address(0xBEEF);
     address user2 = address(0xDEAD);
@@ -19,12 +19,12 @@ contract FOXStakingTestUnstake is Test {
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        deployer = new FoxStakingTestDeployer();
+        deployer = new StakingTestDeployer();
         address proxyAddress = deployer.deployV1(
             address(this),
             address(foxToken)
         );
-        foxStaking = FoxStakingV1(proxyAddress);
+        foxStaking = StakingV1(proxyAddress);
 
         // Free FOX tokens for user
         foxToken.makeItRain(user, amount);

@@ -5,11 +5,11 @@
 1. Install foundry https://book.getfoundry.sh/getting-started/installation
 2. Install slither `brew install slither-analyzer`
 3. Set up .env files:
-    1. Copy an example .env file for your chosen environment:
-        ```shell
-        cp .env.<your-chosen-env>.example .env.<your-chosen-env>
-        ```
-    2. Fill in the needed env vars there
+   1. Copy an example .env file for your chosen environment:
+      ```shell
+      cp .env.<your-chosen-env>.example .env.<your-chosen-env>
+      ```
+   2. Fill in the needed env vars there
 
 ### Private key
 
@@ -32,7 +32,9 @@ https://faucet.circle.com/
 ## Deploying
 
 ### Local deployment
+
 Deploying locally is different to deploying directly to a network for 2 reasons:
+
 1. Its being deployed to a fork of another network (typically ethereum mainnet) rather than a real network.
 2. There's no local instance of etherscan, so etherscan verification is skipped.
 
@@ -46,7 +48,7 @@ anvil --rpc-url $RPC_URL
 ### Deployment steps
 
 ```shell
-cd foundry 
+cd foundry
 
 # Install
 forge install
@@ -70,5 +72,5 @@ forge verify-contract \
   --compiler-version "v0.8.25" \
   --etherscan-api-key $ARBISCAN_API_KEY \
   $CONTRACT_IMPLEMENTATION_ADDRESS \
-  src/FoxStakingV1.sol:FoxStakingV1
+  src/StakingV1.sol:StakingV1
 ```

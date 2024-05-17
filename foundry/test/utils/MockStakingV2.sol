@@ -12,8 +12,8 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {StakingInfo} from "../../src/StakingInfo.sol";
 
-/// @custom:oz-upgrades-from FoxStakingV1
-contract MockFoxStakingV2 is
+/// @custom:oz-upgrades-from StakingV1
+contract MockStakingV2 is
     Initializable,
     PausableUpgradeable,
     UUPSUpgradeable,
@@ -21,7 +21,7 @@ contract MockFoxStakingV2 is
     ReentrancyGuardUpgradeable
 {
     using SafeERC20 for IERC20;
-    IERC20 public foxToken;
+    IERC20 public stakingToken;
     mapping(address => StakingInfo) public stakingInfo;
     bool public stakingPaused;
     bool public withdrawalsPaused;

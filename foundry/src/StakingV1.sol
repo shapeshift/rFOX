@@ -11,7 +11,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {StakingInfo} from "./StakingInfo.sol";
 import {UnstakingRequest} from "./UnstakingRequest.sol";
 
-contract FoxStakingV1 is
+contract StakingV1 is
     Initializable,
     PausableUpgradeable,
     UUPSUpgradeable,
@@ -19,7 +19,7 @@ contract FoxStakingV1 is
     ReentrancyGuardUpgradeable
 {
     using SafeERC20 for IERC20;
-    IERC20 public foxToken;
+    IERC20 public stakingToken;
     mapping(address => StakingInfo) public stakingInfo;
     bool public stakingPaused;
     bool public withdrawalsPaused;
@@ -57,11 +57,11 @@ contract FoxStakingV1 is
         _disableInitializers();
     }
 
-    function initialize(address foxTokenAddress) external initializer {
+    function initialize(address stakingTokenAddress) external initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         __Pausable_init();
-        foxToken = IERC20(foxTokenAddress);
+        stakingToken = IERC20(stakingTokenAddress);
         cooldownPeriod = 28 days;
         lastUpdateTimestamp = block.timestamp;
     }
@@ -158,10 +158,10 @@ contract FoxStakingV1 is
             info.earnedRewards;
     }
 
-    /// @notice Allows a user to stake a specified amount of FOX tokens and assign a RUNE address for rewards - which can be changed later on.
+    /// @notice Allows a user to stake a specified amount of staking tokens and assign a RUNE address for rewards - which can be changed later on.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    /// @param amount The amount of FOX tokens to be staked.
-    /// @param runeAddress The RUNE address to be associated with the user's staked FOX position.
+    /// @param amount The amount of staking tokens to be staked.
+    /// @param runeAddress The RUNE address to be associated with the user's staked staking position.
     function stake(
         uint256 amount,
         string memory runeAddress
@@ -170,9 +170,9 @@ contract FoxStakingV1 is
             bytes(runeAddress).length == 43,
             "Rune address must be 43 characters"
         );
-        require(amount > 0, "FOX amount to stake must be greater than 0");
+        require(amount > 0, "amount to stake must be greater than 0");
         updateReward(msg.sender);
-        foxToken.safeTransferFrom(msg.sender, address(this), amount);
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
 
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
@@ -182,9 +182,9 @@ contract FoxStakingV1 is
         emit Stake(msg.sender, amount, runeAddress);
     }
 
-    /// @notice Initiates the unstake process for a specified amount of FOX, starting the cooldown period (28 days).
+    /// @notice Initiates the unstake process for a specified amount of staking token, starting the cooldown period (28 days).
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    /// @param amount The amount of FOX tokens to be unstaked.
+    /// @param amount The amount of staking tokens to be unstaked.
     function unstake(
         uint256 amount
     ) external whenNotPaused whenUnstakingNotPaused nonReentrant {
@@ -249,7 +249,10 @@ contract FoxStakingV1 is
         }
         info.unstakingBalance -= unstakingRequest.unstakingBalance;
         totalCoolingDown -= unstakingRequest.unstakingBalance;
-        foxToken.safeTransfer(msg.sender, unstakingRequest.unstakingBalance);
+        stakingToken.safeTransfer(
+            msg.sender,
+            unstakingRequest.unstakingBalance
+        );
         emit Withdraw(msg.sender, unstakingRequest.unstakingBalance);
     }
 
@@ -284,7 +287,7 @@ contract FoxStakingV1 is
 
     /// @notice Allows a user to initially set (or update) their THORChain (RUNE) address for receiving staking rewards.
     /// This has to be initiated by the user itself i.e msg.sender only, cannot be called by an address for another
-    /// @param runeAddress The new RUNE address to be associated with the user's staked FOX position.
+    /// @param runeAddress The new RUNE address to be associated with the user's staked position.
     function setRuneAddress(string memory runeAddress) external {
         require(
             bytes(runeAddress).length == 43,
@@ -296,10 +299,10 @@ contract FoxStakingV1 is
         emit SetRuneAddress(msg.sender, oldRuneAddress, runeAddress);
     }
 
-    /// @notice View the staked balance of FOX tokens for a given address.
+    /// @notice View the staked balance of tokens for a given address.
     /// This can be initiated by any address with any address as param, as this has view modifier i.e everything is public on-chain
-    /// @param account The address we're getting the staked FOX balance for.
-    /// @return total The total amount of FOX tokens held.
+    /// @param account The address we're getting the staked staking balance for.
+    /// @return total The total amount of staking tokens held.
     function balanceOf(address account) external view returns (uint256 total) {
         StakingInfo memory info = stakingInfo[account];
         return info.stakingBalance + info.unstakingBalance;

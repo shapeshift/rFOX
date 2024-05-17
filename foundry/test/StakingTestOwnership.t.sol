@@ -3,24 +3,24 @@ pragma solidity ^0.8.25;
 
 import "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {FoxStakingV1} from "../src/FoxStakingV1.sol";
+import {StakingV1} from "../src/StakingV1.sol";
 import {MockFOXToken} from "./utils/MockFOXToken.sol";
-import {FoxStakingTestDeployer} from "./utils/FoxStakingTestDeployer.sol";
+import {StakingTestDeployer} from "./utils/StakingTestDeployer.sol";
 
-contract FOXStakingTestOwnership is Test {
-    FoxStakingTestDeployer public deployer;
-    FoxStakingV1 public foxStaking;
+contract StakingTestOwnership is Test {
+    StakingTestDeployer public deployer;
+    StakingV1 public foxStaking;
     MockFOXToken public foxToken;
     address nonOwner = 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045;
 
     function setUp() public {
         foxToken = new MockFOXToken();
-        deployer = new FoxStakingTestDeployer();
+        deployer = new StakingTestDeployer();
         address proxyAddress = deployer.deployV1(
             address(this),
             address(foxToken)
         );
-        foxStaking = FoxStakingV1(proxyAddress);
+        foxStaking = StakingV1(proxyAddress);
     }
 
     function testOwnerCanUpdateCooldownPeriod() public {

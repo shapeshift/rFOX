@@ -35,14 +35,14 @@ forge clean
 
 if [ "$ENVIRONMENT" = "local" ]; then
     # Local environment-specific commands (no etherscan verification)
-    FOX_TOKEN_ADDRESS="$FOX_TOKEN_ADDRESS" forge script script/DeployFoxStaking.s.sol:DeployFoxStaking \
+    STAKING_TOKEN_ADDRESS="$STAKING_TOKEN_ADDRESS" forge script script/DeployStaking.s.sol:DeployStaking \
         --fork-url $RPC_URL  \
         --private-key $PRIVATE_KEY \
         --broadcast \
         -vvvvv
 else
     # All other environments use etherscan verification (which automatically reroutes to arbiscan as needed)
-    FOX_TOKEN_ADDRESS="$FOX_TOKEN_ADDRESS" forge script script/DeployFoxStaking.s.sol:DeployFoxStaking \
+    STAKING_TOKEN_ADDRESS="$STAKING_TOKEN_ADDRESS" forge script script/DeployStaking.s.sol:DeployStaking \
         --rpc-url $RPC_URL  \
         --private-key $PRIVATE_KEY \
         --broadcast \

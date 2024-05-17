@@ -154,7 +154,7 @@ contract FOXStakingTestStaking is Test {
         vm.assertEq(unstakingBalance, 0);
 
         // Try to stake 0
-        vm.expectRevert("FOX amount to stake must be greater than 0");
+        vm.expectRevert("amount to stake must be greater than 0");
         foxStaking.stake(0, runeAddress);
 
         // Check user staking balances are unchanged

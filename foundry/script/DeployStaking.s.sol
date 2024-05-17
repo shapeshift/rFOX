@@ -7,19 +7,19 @@ import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {StakingV1} from "../src/StakingV1.sol";
 
 contract DeployStaking is Script {
-    address foxTokenAddress;
+    address stakingTokenAddress;
 
     function setUp() public {
-        foxTokenAddress = vm.envAddress("FOX_TOKEN_ADDRESS");
+        stakingTokenAddress = vm.envAddress("STAKING_TOKEN_ADDRESS");
     }
 
     function run() public {
         vm.startBroadcast();
-        address foxStakingProxy = Upgrades.deployUUPSProxy(
+        address stakingProxy = Upgrades.deployUUPSProxy(
             "StakingV1.sol",
-            abi.encodeCall(StakingV1.initialize, (foxTokenAddress))
+            abi.encodeCall(StakingV1.initialize, (stakingTokenAddress))
         );
         vm.stopBroadcast();
-        console.log("Contract deployed at:", foxStakingProxy);
+        console.log("Contract deployed at:", stakingProxy);
     }
 }

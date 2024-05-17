@@ -1,10 +1,10 @@
 import { Address, formatUnits, parseUnits } from "viem";
 import { Hex } from "viem";
 
-import FoxStaking from "../../foundry/out/FoxStakingV1.sol/FOXStakingV1.json";
+import StakingV1 from "../../foundry/out/StakingV1.sol/StakingV1.json";
 import MockFOXToken from "../../foundry/out/MockFOXToken.sol/MockFOXToken.json";
 import { localPublicClient, localWalletClient } from "./constants";
-import { foxStakingV1Abi, mockFoxTokenAbi } from "./generated/abi-types";
+import { stakingV1Abi, mockFoxTokenAbi } from "./generated/abi-types";
 
 export const simulateStaking = async () => {
   const walletClient = localWalletClient;
@@ -23,24 +23,24 @@ export const simulateStaking = async () => {
     });
   console.log(`MockFOXToken deployed to: ${mockFoxtokenContractAddress}`);
 
-  // Deploy the FOXStaking contract with the address of the deployed MockFOXToken as FOX
+  // Deploy the Staking contract with the address of the deployed MockFOXToken as FOX
 
-  const mockFoxStakingDeployHash = await walletClient.deployContract({
-    abi: foxStakingV1Abi,
+  const mockStakingDeployHash = await walletClient.deployContract({
+    abi: stakingV1Abi,
     account: alice,
-    bytecode: FoxStaking.bytecode.object as Hex,
-    args: [], // The contructor of the FOXStaking contract does not take any arguments
+    bytecode: StakingV1.bytecode.object as Hex,
+    args: [], // The contructor of the Staking contract does not take any arguments
   });
 
-  const { contractAddress: mockFoxStakingContractAddress } =
+  const { contractAddress: mockStakingContractAddress } =
     await publicClient.waitForTransactionReceipt({
-      hash: mockFoxStakingDeployHash,
+      hash: mockStakingDeployHash,
     });
 
-  if (!mockFoxStakingContractAddress) {
-    throw new Error("FOXStaking contract address not found");
+  if (!mockStakingContractAddress) {
+    throw new Error("Staking contract address not found");
   }
-  console.log(`FOXStaking deployed to: ${mockFoxStakingContractAddress}`);
+  console.log(`Staking deployed to: ${mockStakingContractAddress}`);
 
   const foxDecimals = await publicClient.readContract({
     address: mockFoxtokenContractAddress as Address,
@@ -67,26 +67,26 @@ export const simulateStaking = async () => {
     foxDecimals,
   );
 
-  // Approve FOX to be spent by the FOXStaking contract
+  // Approve FOX to be spent by the Staking contract
 
   const approveTxHash = await walletClient.writeContract({
     address: mockFoxtokenContractAddress as Address,
     abi: mockFoxTokenAbi,
     account: bob,
     functionName: "approve",
-    args: [mockFoxStakingContractAddress, amountToStakeCryptoBaseUnit],
+    args: [mockStakingContractAddress, amountToStakeCryptoBaseUnit],
   });
   const { transactionHash } = await publicClient.waitForTransactionReceipt({
     hash: approveTxHash,
   });
 
   console.log(
-    `Granted allowance for ${amountToStakeCryptoPrecision} FOX tokens to be spent by FOXStaking contract: ${transactionHash}`,
+    `Granted allowance for ${amountToStakeCryptoPrecision} FOX tokens to be spent by Staking contract: ${transactionHash}`,
   );
 
   const stakeTxHash = await walletClient.writeContract({
-    address: mockFoxStakingContractAddress as Address,
-    abi: foxStakingV1Abi,
+    address: mockStakingContractAddress as Address,
+    abi: stakingV1Abi,
     account: bob,
     functionName: "stake",
     args: [amountToStakeCryptoBaseUnit, ""], // FIXME: add the runeAddress],
@@ -95,12 +95,12 @@ export const simulateStaking = async () => {
   const { transactionHash: stakeTransactionHash } =
     await publicClient.waitForTransactionReceipt({ hash: stakeTxHash });
   console.log(
-    `Staked ${amountToStakeCryptoPrecision} FOX from Bob to FOXStaking contract: ${stakeTransactionHash}`,
+    `Staked ${amountToStakeCryptoPrecision} FOX from Bob to Staking contract: ${stakeTransactionHash}`,
   );
 
   const bobStakedBalance = await publicClient.readContract({
-    address: mockFoxStakingContractAddress as Address,
-    abi: foxStakingV1Abi,
+    address: mockStakingContractAddress as Address,
+    abi: stakingV1Abi,
     functionName: "balanceOf",
     args: [bob],
   });

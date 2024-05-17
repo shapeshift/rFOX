@@ -6,7 +6,7 @@ import {StakingV1} from "../src/StakingV1.sol";
 import {MockFOXToken} from "./utils/MockFOXToken.sol";
 import {StakingTestDeployer} from "./utils/StakingTestDeployer.sol";
 
-contract FOXStakingTestOwnership is Test {
+contract StakingTestOwnership is Test {
     StakingTestDeployer public deployer;
     StakingV1 public foxStaking;
     MockFOXToken public foxToken;

@@ -21,7 +21,8 @@
 
 - Run foundry's anvil with `anvil`
 - Rewards distribution can be tested locally with `ts-node scripts/rewards-distribution/index.ts`
-- Ensure you CTRL + C anvil and restart it between run to clear your local blockchain state.
+- Rewards disctribution script can be debugged locally with `cd scripts/rewards-distribution` and `NODE_OPTIONS="-r ts-node/register" node --inspect-brk index.ts` then going to `chrome://inspect` in Chrome to open the Node.JS debugging tools
+- Ensure you CTRL + C anvil and restart it between run to clear your local blockchain state
 
 # rFOX.wtf
 

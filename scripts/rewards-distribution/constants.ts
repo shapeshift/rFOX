@@ -1,7 +1,7 @@
 import { createPublicClient, createWalletClient, http } from "viem";
 import { localhost } from "viem/chains";
 
-const ANVIL_JSON_RPC_URL = "http://localhost:8545";
+const ANVIL_JSON_RPC_URL = "http://127.0.0.1:8545";
 
 export const localChain = {
   ...localhost,

@@ -17,5 +17,8 @@
   },
   "simple-git-hooks": {
     "pre-commit": "yarn lint:sol && yarn pretty-quick --staged"
+  },
+  "dependencies": {
+    "bignumber.js": "^9.1.2"
   }
 }

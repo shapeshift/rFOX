@@ -1,81 +1,52 @@
-import { AbiEvent, Address, Log, parseEventLogs } from "viem";
+import { Log, getAbiItem } from "viem";
+import { stakingV1Abi } from "./generated/abi-types";
 
-type StakingEventName = "Stake" | "Unstake";
+export const stakeEvent = getAbiItem({ abi: stakingV1Abi, name: "Stake" });
+export const unstakeEvent = getAbiItem({ abi: stakingV1Abi, name: "Unstake" });
+export const updateCooldownPeriodEvent = getAbiItem({
+  abi: stakingV1Abi,
+  name: "UpdateCooldownPeriod",
+});
+export const withdrawEvent = getAbiItem({
+  abi: stakingV1Abi,
+  name: "Withdraw",
+});
+export const setRuneAddressEvent = getAbiItem({
+  abi: stakingV1Abi,
+  name: "SetRuneAddress",
+});
 
-type StakingAbiEvent<T extends StakingEventName> = {
-  type: "event";
-  anonymous: false;
-  inputs: [
-    {
-      name: "account";
-      type: "address";
-      indexed: true;
-    },
-    {
-      name: "amount";
-      type: "uint256";
-      indexed: false;
-    },
-    // TOOD(gomes): if runeAddress is part of the staking fn, then it should be part of the Stake event too and should be reflected here
-  ];
-  name: T;
-};
+export const rFoxEvents = [
+  stakeEvent,
+  unstakeEvent,
+  updateCooldownPeriodEvent,
+  withdrawEvent,
+  setRuneAddressEvent,
+] as const;
 
-type GenericStakingEventLog<T extends StakingEventName> = Log<
+export type RFoxEvent = (typeof rFoxEvents)[number];
+
+export type StakeLog = Log<bigint, number, false, typeof stakeEvent, true>;
+export type UnstakeLog = Log<bigint, number, false, typeof unstakeEvent, true>;
+export type UpdateCooldownPeriodLog = Log<
   bigint,
   number,
   false,
-  AbiEvent,
-  true,
-  StakingAbiEvent<T>[],
-  T
+  typeof updateCooldownPeriodEvent,
+  true
+>;
+export type WithdrawLog = Log<bigint, number, false, typeof withdrawEvent>;
+export type SetRuneAddressLog = Log<
+  bigint,
+  number,
+  false,
+  typeof setRuneAddressEvent,
+  true
 >;
 
-// explicit union of all possible event logs to ensure event args are correctly parsed by ts (fixes defaulting to unknown)
-export type StakingEventLog =
-  | GenericStakingEventLog<"Stake">
-  | GenericStakingEventLog<"Unstake">;
-
-const addressA: Address = "0xA";
-const addressB: Address = "0xB";
-const addressC: Address = "0xC";
-const addressD: Address = "0xD";
-const addressE: Address = "0xE";
-
-export type StakingLog = Pick<
-  StakingEventLog,
-  "blockNumber" | "eventName" | "args"
->;
-
-export const logs: StakingLog[] = [
-  {
-    blockNumber: 20n,
-    eventName: "Stake",
-    args: { account: addressA, amount: 100n },
-  },
-  {
-    blockNumber: 25n,
-    eventName: "Stake",
-    args: { account: addressB, amount: 150n },
-  },
-  {
-    blockNumber: 32n,
-    eventName: "Stake",
-    args: { account: addressC, amount: 10000n },
-  },
-  {
-    blockNumber: 33n,
-    eventName: "Stake",
-    args: { account: addressD, amount: 1200n },
-  },
-  {
-    blockNumber: 60n,
-    eventName: "Unstake",
-    args: { account: addressA, amount: 100n },
-  },
-  {
-    blockNumber: 65n,
-    eventName: "Stake",
-    args: { account: addressE, amount: 500n },
-  },
-];
+export type RFoxLog =
+  | StakeLog
+  | UnstakeLog
+  | UpdateCooldownPeriodLog
+  | WithdrawLog
+  | SetRuneAddressLog;

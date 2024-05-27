@@ -1,14 +1,17 @@
 import { prompt, type QuestionCollection } from "inquirer";
 import { RUNE_DECIMALS } from "./constants";
-import { fromBaseUnit, toBaseUnit } from "./helpers";
+import { fromBaseUnit, getLogsChunked, toBaseUnit } from "./helpers";
+import { localPublicClient } from "./client";
+import { rFoxEvents } from "./events";
+import { simulateStaking } from "./simulateStaking";
 
 const inquireBlockRange = async (): Promise<{
   fromBlock: bigint;
   toBlock: bigint;
 }> => {
   const questions: QuestionCollection<{
-    fromBlock: bigint;
-    toBlock: bigint;
+    fromBlock: number;
+    toBlock: number;
   }> = [
     {
       type: "number",
@@ -23,7 +26,7 @@ const inquireBlockRange = async (): Promise<{
   ];
 
   const { fromBlock, toBlock } = await prompt(questions);
-  return { fromBlock, toBlock };
+  return { fromBlock: BigInt(fromBlock), toBlock: BigInt(toBlock) };
 };
 
 const inquireTotalRuneAmountToDistroBaseUnit = async (): Promise<bigint> => {
@@ -73,6 +76,9 @@ const confirmResponses = async (
 };
 
 const main = async () => {
+  // TODO: remove this line
+  await simulateStaking();
+
   const { fromBlock, toBlock } = await inquireBlockRange();
 
   const totalRuneAmountToDistroBaseUnit =
@@ -89,6 +95,15 @@ const main = async () => {
     toBlock,
     totalRuneAmountToDistroBaseUnit,
   });
+
+  const logs = await getLogsChunked(
+    localPublicClient,
+    rFoxEvents,
+    fromBlock,
+    toBlock,
+  );
+
+  console.log(logs);
 };
 
 main();

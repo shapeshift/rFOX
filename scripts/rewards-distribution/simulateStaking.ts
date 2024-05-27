@@ -4,7 +4,7 @@ import {
   localPublicClient,
   localOwnerWalletClient,
   localUserWalletClient,
-} from "./constants";
+} from "./client";
 import { stakingV1Abi, mockFoxTokenAbi } from "./generated/abi-types";
 
 export const simulateStaking = async () => {

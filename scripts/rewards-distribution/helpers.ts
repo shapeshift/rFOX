@@ -1,6 +1,8 @@
 import BigNumber from "bignumber.js";
 import { GET_LOGS_BLOCK_STEP_SIZE } from "./constants";
 import { AbiEvent, Log, PublicClient } from "viem";
+import cliProgress from "cli-progress";
+import colors from "ansi-colors";
 import { RFoxEvent, RFoxLog, StakeLog, UnstakeLog } from "./events";
 
 export const assertUnreachable = (x: never): never => {
@@ -37,9 +39,29 @@ export const getLogsChunked = async <E extends readonly RFoxEvent[]>(
   toBlock: bigint,
 ): Promise<RFoxLog[]> => {
   const logs = [];
+
+  const progressBar = new cliProgress.SingleBar({
+    format:
+      "Fetch Logs Progress |" +
+      colors.cyan("{bar}") +
+      "| {percentage}% || {value}/{total} Pages",
+    barCompleteChar: "\u2588",
+    barIncompleteChar: "\u2591",
+    hideCursor: true,
+  });
+
+  progressBar.start(
+    Number((toBlock - fromBlock) / GET_LOGS_BLOCK_STEP_SIZE),
+    0,
+    {
+      speed: "N/A",
+    },
+  );
+
   let fromBlockInner = fromBlock;
+
   while (fromBlockInner < toBlock) {
-    let toBlockInner = fromBlock + GET_LOGS_BLOCK_STEP_SIZE;
+    let toBlockInner = fromBlockInner + GET_LOGS_BLOCK_STEP_SIZE;
 
     // Limit toBlockInner to toBlock so we never go past the upper range
     if (toBlockInner > toBlock) {
@@ -56,7 +78,12 @@ export const getLogsChunked = async <E extends readonly RFoxEvent[]>(
 
     // Set fromBlockInner toBlockInner + 1 so we don't double fetch that block
     fromBlockInner = toBlockInner + 1n;
+
+    progressBar.increment();
   }
+
+  progressBar.stop();
+
   return logs;
 };
 

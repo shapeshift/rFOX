@@ -1,12 +1,14 @@
 import { prompt, type QuestionCollection } from "inquirer";
-import { RUNE_DECIMALS } from "./constants";
+import {
+  ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+  RUNE_DECIMALS,
+} from "./constants";
 import { fromBaseUnit, getLogsChunked, indexBy, toBaseUnit } from "./helpers";
-import { localPublicClient } from "./client";
+import { publicClient } from "./client";
 import { rFoxEvents } from "./events";
-import { simulateStaking } from "./simulateStaking";
-import { calculateRewards } from "./calculateRewards/caclulateRewards";
+import { calculateRewards } from "./calculateRewards/calculateRewards";
 import { stakingV1Abi } from "./generated/abi-types";
-import { Address } from "viem";
+import assert from "assert";
 
 const inquireBlockRange = async (): Promise<{
   fromBlock: bigint;
@@ -20,15 +22,18 @@ const inquireBlockRange = async (): Promise<{
       type: "number",
       name: "fromBlock",
       message: "What is the START block number of this epoch?",
+      default: 215722218, // TODO: remove this default
     },
     {
       type: "number",
       name: "toBlock",
       message: "What is the END block number of this epoch?",
+      default: 215722586, // TODO: remove this default
     },
   ];
 
   const { fromBlock, toBlock } = await prompt(questions);
+  assert(fromBlock < toBlock, "Start block must be less than end block");
   return { fromBlock: BigInt(fromBlock), toBlock: BigInt(toBlock) };
 };
 
@@ -79,9 +84,6 @@ const confirmResponses = async (
 };
 
 const main = async () => {
-  // TODO: remove this line
-  await simulateStaking();
-
   const { fromBlock, toBlock } = await inquireBlockRange();
 
   const totalRuneAmountToDistroBaseUnit =
@@ -93,36 +95,32 @@ const main = async () => {
     fromBaseUnit(totalRuneAmountToDistroBaseUnit, RUNE_DECIMALS),
   );
 
-  console.log({
-    fromBlock,
-    toBlock,
-    totalRuneAmountToDistroBaseUnit,
+  const totalStaked = await publicClient.readContract({
+    // TODO: dotenv or similar for contract addresses
+    address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+    abi: stakingV1Abi,
+    functionName: "totalStaked",
+    args: [],
+    blockNumber: toBlock,
+  });
+
+  const epochBlockReward = await publicClient.readContract({
+    // TODO: dotenv or similar for contract addresses
+    address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+    abi: stakingV1Abi,
+    functionName: "rewardPerToken",
+    args: [],
+    blockNumber: toBlock,
   });
 
   const logs = await getLogsChunked(
-    localPublicClient,
+    publicClient,
     rFoxEvents,
     fromBlock,
     toBlock,
   );
 
   const logsByBlockNumber = indexBy(logs, "blockNumber");
-
-  const epochBlockReward = await localPublicClient.readContract({
-    // TODO: dotenv or similar for contract addresses
-    address: process.env.STAKING_PROXY_ADDRESS as Address,
-    abi: stakingV1Abi,
-    functionName: "rewardPerToken",
-    args: [],
-  });
-
-  const totalStaked = await localPublicClient.readContract({
-    // TODO: dotenv or similar for contract addresses
-    address: process.env.STAKING_PROXY_ADDRESS as Address,
-    abi: stakingV1Abi,
-    functionName: "totalStaked",
-    args: [],
-  });
 
   const epochRewardByAccount = calculateRewards(
     fromBlock,
@@ -134,6 +132,8 @@ const main = async () => {
 
   console.log("rewards to be distributed:");
   console.log(epochRewardByAccount);
+
+  // TODO: Confirm details again before proceeding
 };
 
 main();

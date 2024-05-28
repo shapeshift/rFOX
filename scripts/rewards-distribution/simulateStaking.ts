@@ -1,7 +1,7 @@
 import { Address, formatUnits, parseUnits } from "viem";
 
 import {
-  localPublicClient,
+  publicClient,
   localOwnerWalletClient,
   localUserWalletClient,
 } from "./client";
@@ -10,7 +10,7 @@ import { stakingV1Abi, mockFoxTokenAbi } from "./generated/abi-types";
 export const simulateStaking = async () => {
   const ownerWalletClient = localOwnerWalletClient;
   const userWalletClient = localUserWalletClient;
-  const publicClient = localPublicClient;
+  const publicClient = publicClient;
   const bobRuneAddress = "thor17gw75axcnr8747pkanye45pnrwk7p9c3cqncsv";
 
   const [bob] = await localUserWalletClient.getAddresses();

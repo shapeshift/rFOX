@@ -1,9 +1,12 @@
 import { prompt, type QuestionCollection } from "inquirer";
 import { RUNE_DECIMALS } from "./constants";
-import { fromBaseUnit, getLogsChunked, toBaseUnit } from "./helpers";
+import { fromBaseUnit, getLogsChunked, indexBy, toBaseUnit } from "./helpers";
 import { localPublicClient } from "./client";
 import { rFoxEvents } from "./events";
 import { simulateStaking } from "./simulateStaking";
+import { calculateRewards } from "./calculateRewards/caclulateRewards";
+import { stakingV1Abi } from "./generated/abi-types";
+import { Address } from "viem";
 
 const inquireBlockRange = async (): Promise<{
   fromBlock: bigint;
@@ -103,7 +106,34 @@ const main = async () => {
     toBlock,
   );
 
-  console.log(logs);
+  const logsByBlockNumber = indexBy(logs, "blockNumber");
+
+  const epochBlockReward = await localPublicClient.readContract({
+    // TODO: dotenv or similar for contract addresses
+    address: process.env.STAKING_PROXY_ADDRESS as Address,
+    abi: stakingV1Abi,
+    functionName: "rewardPerToken",
+    args: [],
+  });
+
+  const totalStaked = await localPublicClient.readContract({
+    // TODO: dotenv or similar for contract addresses
+    address: process.env.STAKING_PROXY_ADDRESS as Address,
+    abi: stakingV1Abi,
+    functionName: "totalStaked",
+    args: [],
+  });
+
+  const epochRewardByAccount = calculateRewards(
+    fromBlock,
+    toBlock,
+    logsByBlockNumber,
+    epochBlockReward,
+    totalStaked,
+  );
+
+  console.log("rewards to be distributed:");
+  console.log(epochRewardByAccount);
 };
 
 main();

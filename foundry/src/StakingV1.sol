@@ -181,7 +181,7 @@ contract StakingV1 is
             "Rune address must be 43 characters"
         );
         require(amount > 0, "amount to stake must be greater than 0");
-        updateReward(msg.sender);
+        _updateReward(msg.sender);
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
 
         StakingInfo storage info = stakingInfo[msg.sender];
@@ -206,7 +206,7 @@ contract StakingV1 is
             amount <= info.stakingBalance,
             "Unstake amount exceeds staked balance"
         );
-        updateReward(msg.sender);
+        _updateReward(msg.sender);
 
         // Set staking / unstaking amounts
         info.stakingBalance -= amount;
@@ -340,7 +340,7 @@ contract StakingV1 is
 
     /// @notice Updates all variables when changes to staking amounts are made.
     /// @param account The address of the account to update.
-    function updateReward(address account) internal {
+    function _updateReward(address account) internal {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTimestamp = block.timestamp;
         StakingInfo storage info = stakingInfo[account];

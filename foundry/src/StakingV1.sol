@@ -51,6 +51,9 @@ contract StakingV1 is
         string indexed oldRuneAddress,
         string indexed newRuneAddress
     );
+    event StakingPausedChanged(bool isPaused);
+    event WithdrawalsPausedChanged(bool isPaused);
+    event UnstakingPausedChanged(bool isPaused);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -77,31 +80,37 @@ contract StakingV1 is
     /// @notice Pauses deposits
     function pauseStaking() external onlyOwner {
         stakingPaused = true;
+        emit StakingPausedChanged(true);
     }
 
     /// @notice Unpauses deposits
     function unpauseStaking() external onlyOwner {
         stakingPaused = false;
+        emit StakingPausedChanged(false);
     }
 
     /// @notice Pauses withdrawals
     function pauseWithdrawals() external onlyOwner {
         withdrawalsPaused = true;
+        emit WithdrawalsPausedChanged(true);
     }
 
     /// @notice Unpauses withdrawals
     function unpauseWithdrawals() external onlyOwner {
         withdrawalsPaused = false;
+        emit WithdrawalsPausedChanged(false);
     }
 
     /// @notice Pauses unstaking
     function pauseUnstaking() external onlyOwner {
         unstakingPaused = true;
+        emit UnstakingPausedChanged(true);
     }
 
     /// @notice Unpauses unstaking
     function unpauseUnstaking() external onlyOwner {
         unstakingPaused = false;
+        emit UnstakingPausedChanged(false);
     }
 
     /// @notice Sets contract-level paused state

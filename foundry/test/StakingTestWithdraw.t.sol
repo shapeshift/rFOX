@@ -40,6 +40,8 @@ contract FOXStakingTestWithdraw is Test {
     }
 
     function testCannotWithdrawWhenWithdrawalsPaused() public {
+        vm.expectEmit();
+        emit StakingV1.WithdrawalsPausedChanged(true);
         foxStaking.pauseWithdrawals();
 
         vm.startPrank(user);
@@ -86,6 +88,8 @@ contract FOXStakingTestWithdraw is Test {
         foxStaking.withdraw();
         vm.stopPrank();
 
+        vm.expectEmit();
+        emit StakingV1.WithdrawalsPausedChanged(false);
         foxStaking.unpauseWithdrawals();
 
         vm.startPrank(user);

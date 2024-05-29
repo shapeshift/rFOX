@@ -46,6 +46,8 @@ contract FOXStakingTestUnstake is Test {
     }
 
     function testCannotUnstakeWhenUnstakingPaused() public {
+        vm.expectEmit();
+        emit StakingV1.UnstakingPausedChanged(true);
         foxStaking.pauseUnstaking();
 
         vm.startPrank(user);
@@ -76,6 +78,8 @@ contract FOXStakingTestUnstake is Test {
         foxStaking.unstake(amount);
         vm.stopPrank();
 
+        vm.expectEmit();
+        emit StakingV1.UnstakingPausedChanged(false);
         foxStaking.unpauseUnstaking();
 
         vm.startPrank(user);

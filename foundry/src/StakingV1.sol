@@ -80,36 +80,42 @@ contract StakingV1 is
 
     /// @notice Pauses deposits
     function pauseStaking() external onlyOwner {
+        require(!stakingPaused, "Staking is paused");
         stakingPaused = true;
         emit StakingPausedChanged(true);
     }
 
     /// @notice Unpauses deposits
     function unpauseStaking() external onlyOwner {
+        require(stakingPaused, "Staking is not paused");
         stakingPaused = false;
         emit StakingPausedChanged(false);
     }
 
     /// @notice Pauses withdrawals
     function pauseWithdrawals() external onlyOwner {
+        require(!withdrawalsPaused, "Withdrawals are paused");
         withdrawalsPaused = true;
         emit WithdrawalsPausedChanged(true);
     }
 
     /// @notice Unpauses withdrawals
     function unpauseWithdrawals() external onlyOwner {
+        require(withdrawalsPaused, "Withdrawals are not paused");
         withdrawalsPaused = false;
         emit WithdrawalsPausedChanged(false);
     }
 
     /// @notice Pauses unstaking
     function pauseUnstaking() external onlyOwner {
+        require(!unstakingPaused, "Unstaking is paused");
         unstakingPaused = true;
         emit UnstakingPausedChanged(true);
     }
 
     /// @notice Unpauses unstaking
     function unpauseUnstaking() external onlyOwner {
+        require(unstakingPaused, "Unstaking is not paused");
         unstakingPaused = false;
         emit UnstakingPausedChanged(false);
     }

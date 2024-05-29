@@ -1,9 +1,33 @@
 import BigNumber from "bignumber.js";
-import { GET_LOGS_BLOCK_STEP_SIZE } from "./constants";
-import { AbiEvent, Log, PublicClient } from "viem";
+import {
+  ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+  GET_LOGS_BLOCK_STEP_SIZE,
+} from "./constants";
+import { AbiEvent, Block, Log, PublicClient } from "viem";
 import cliProgress from "cli-progress";
 import colors from "ansi-colors";
 import { RFoxEvent, RFoxLog, StakeLog, UnstakeLog } from "./events";
+import { stakingV1Abi } from "./generated/abi-types";
+
+// we cache promises to prevent async race conditions hydrating the cache
+const blockNumberToTimestampCache: Record<string, Promise<bigint>> = {};
+
+export const getBlockTimestamp = async (
+  publicClient: PublicClient,
+  blockNumber: bigint,
+): Promise<bigint> => {
+  if (blockNumberToTimestampCache[blockNumber.toString()] !== undefined) {
+    return blockNumberToTimestampCache[blockNumber.toString()];
+  }
+
+  const timestampPromise = publicClient
+    .getBlock({ blockNumber })
+    .then((block) => block.timestamp);
+
+  blockNumberToTimestampCache[blockNumber.toString()] = timestampPromise;
+
+  return timestampPromise;
+};
 
 export const assertUnreachable = (x: never): never => {
   throw Error(`unhandled case: ${x}`);
@@ -32,12 +56,11 @@ export const fromBaseUnit = (
 };
 
 // Get logs from the blockchain in chunks
-export const getLogsChunked = async <E extends readonly RFoxEvent[]>(
+export const getLogsChunked = async (
   publicClient: PublicClient,
-  events: E,
   fromBlock: bigint,
   toBlock: bigint,
-): Promise<RFoxLog[]> => {
+): Promise<{ log: RFoxLog; timestamp: bigint }[]> => {
   const logs = [];
 
   const progressBar = new cliProgress.SingleBar({
@@ -51,7 +74,7 @@ export const getLogsChunked = async <E extends readonly RFoxEvent[]>(
   });
 
   progressBar.start(
-    Number((toBlock - fromBlock) / GET_LOGS_BLOCK_STEP_SIZE),
+    Math.ceil(Number(toBlock - fromBlock) / Number(GET_LOGS_BLOCK_STEP_SIZE)),
     0,
     {
       speed: "N/A",
@@ -68,18 +91,44 @@ export const getLogsChunked = async <E extends readonly RFoxEvent[]>(
       toBlockInner = toBlock;
     }
 
-    const logsChunk = await publicClient.getLogs({
-      events,
+    const logsChunk = await publicClient.getContractEvents({
+      address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+      abi: stakingV1Abi,
       fromBlock: fromBlockInner,
       toBlock: toBlockInner,
     });
 
-    logs.push(...(logsChunk as RFoxLog[]));
+    // Attach the block timestamp for each log
+    /**
+      TEMP: Free-tier rate limiting means we cant do a promise.all here
+      const logsChunkWithTimestamp: { log: RFoxLog; timestamp: bigint }[] =
+        await Promise.all(
+          logsChunk.map(async (log) => {
+            const timestamp = await getBlockTimestamp(
+              publicClient,
+              log.blockNumber,
+            );
+            return {
+              log: log as RFoxLog,
+              timestamp,
+            };
+          }),
+        );
+      */
+    const logsChunkWithTimestamp: { log: RFoxLog; timestamp: bigint }[] = [];
+    for (const log of logsChunk) {
+      const timestamp = await getBlockTimestamp(publicClient, log.blockNumber);
+      logsChunkWithTimestamp.push({
+        log: log as RFoxLog,
+        timestamp,
+      });
+    }
 
-    // Set fromBlockInner toBlockInner + 1 so we don't double fetch that block
-    fromBlockInner = toBlockInner + 1n;
+    logs.push(...logsChunkWithTimestamp);
 
     progressBar.increment();
+
+    fromBlockInner = toBlockInner;
   }
 
   progressBar.stop();

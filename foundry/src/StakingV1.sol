@@ -177,7 +177,6 @@ contract StakingV1 is
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
         info.runeAddress = runeAddress;
-
         totalStaked += amount;
 
         emit Stake(msg.sender, amount, runeAddress);
@@ -202,7 +201,6 @@ contract StakingV1 is
         // Set staking / unstaking amounts
         info.stakingBalance -= amount;
         info.unstakingBalance += amount;
-
         totalStaked -= amount;
         totalCoolingDown += amount;
 

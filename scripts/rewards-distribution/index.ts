@@ -8,7 +8,7 @@ import { publicClient } from "./client";
 import { calculateRewards } from "./calculateRewards/calculateRewards";
 import { stakingV1Abi } from "./generated/abi-types";
 import assert from "assert";
-import { Address } from "viem";
+import { validateRewardsDistribution } from "./validation";
 
 const inquireBlockRange = async (): Promise<{
   fromBlock: bigint;
@@ -130,40 +130,12 @@ const main = async () => {
     logs,
   );
 
-  // validate rewards per account against the contract
-  for (const [account, calculatedReward] of Object.entries(
+  await validateRewardsDistribution(
+    publicClient,
     earnedRewardsByAccount,
-  )) {
-    const [previousTotalEarnedForAccount, currentTotalEarnedForAccount] =
-      await Promise.all([
-        publicClient.readContract({
-          // TODO: dotenv or similar for contract addresses
-          address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
-          abi: stakingV1Abi,
-          functionName: "earned",
-          args: [account as Address],
-          blockNumber: fromBlock - 1n, // The end of the previous epoch
-        }),
-        publicClient.readContract({
-          // TODO: dotenv or similar for contract addresses
-          address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
-          abi: stakingV1Abi,
-          functionName: "earned",
-          args: [account as Address],
-          blockNumber: toBlock,
-        }),
-      ]);
-
-    const onChainReward =
-      currentTotalEarnedForAccount - previousTotalEarnedForAccount;
-
-    assert(
-      calculatedReward === onChainReward,
-      `Expected reward for ${account} to be ${onChainReward}, got ${calculatedReward}`,
-    );
-  }
-
-  console.log("Validation passed.");
+    fromBlock,
+    toBlock,
+  );
 
   // TODO: Confirm details again before proceeding
 };

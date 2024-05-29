@@ -188,13 +188,13 @@ contract StakingV1 is
         );
         require(amount > 0, "amount to stake must be greater than 0");
         _updateReward(msg.sender);
-        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
 
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
         info.runeAddress = runeAddress;
         totalStaked += amount;
 
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         emit Stake(msg.sender, amount, runeAddress);
     }
 

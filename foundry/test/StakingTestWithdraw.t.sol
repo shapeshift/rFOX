@@ -175,7 +175,7 @@ contract FOXStakingTestWithdraw is Test {
         vm.stopPrank();
     }
 
-      function testWithdraw_cannotPauseAlreadyPaused() public {
+    function testWithdraw_cannotPauseAlreadyPaused() public {
         vm.expectEmit();
         emit StakingV1.WithdrawalsPausedChanged(true);
         foxStaking.pauseWithdrawals();

@@ -64,6 +64,7 @@ contract StakingV1 is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         __Pausable_init();
+        __ReentrancyGuard_init();
         stakingToken = IERC20(stakingTokenAddress);
         cooldownPeriod = 28 days;
         lastUpdateTimestamp = block.timestamp;

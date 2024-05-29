@@ -224,7 +224,7 @@ contract FOXStakingTestStaking is Test {
         // we should confirm that they still recieve expected rewards when.
 
         // create mega whale
-        uint256 megaWhaleAmount = 900_000_000 * 1e18; // 900 million FOX tokens with 18 decimals
+        uint256 megaWhaleAmount = 9_000_000_000 * 1e18; // 9 billion FOX tokens with 18 decimals
         foxToken.makeItRain(userOne, megaWhaleAmount);
 
         vm.prank(userOne);
@@ -246,7 +246,7 @@ contract FOXStakingTestStaking is Test {
 
     function testRewardAmountsForOverflow() public {
         // create mega whale
-        uint256 megaWhaleAmount = 900_000_000 * 1e18; // 900 million FOX tokens with 18 decimals
+        uint256 megaWhaleAmount = 9_000_000_000 * 1e18; // 9 billion FOX tokens with 18 decimals
         foxToken.makeItRain(userOne, megaWhaleAmount);
 
         vm.prank(userOne);
@@ -254,8 +254,8 @@ contract FOXStakingTestStaking is Test {
         vm.prank(userOne);
         foxStaking.stake(megaWhaleAmount, runeAddressOne);
 
-        // advance time by 15 years
-        vm.warp(block.timestamp + 365 * 15 days);
+        // advance time by 200 years
+        vm.warp(block.timestamp + 365 days * 200);
 
         // ensure this does not overflow
         foxStaking.earned(userOne);

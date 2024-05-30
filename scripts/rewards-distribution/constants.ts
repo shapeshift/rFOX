@@ -1,19 +1,25 @@
 import { createPublicClient, createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { localhost } from "viem/chains";
-
-const ANVIL_JSON_RPC_URL = "http://127.0.0.1:8545";
 
 export const localChain = {
   ...localhost,
   id: 31337,
 } as const;
 
-export const localWalletClient = createWalletClient({
+export const localOwnerWalletClient = createWalletClient({
   chain: localChain,
-  transport: http(ANVIL_JSON_RPC_URL),
+  account: privateKeyToAccount(process.env.OWNER_PRIVATE_KEY as `0x${string}`),
+  transport: http(process.env.ANVIL_JSON_RPC_URL),
+});
+
+export const localUserWalletClient = createWalletClient({
+  chain: localChain,
+  account: privateKeyToAccount(process.env.USER_PRIVATE_KEY as `0x${string}`),
+  transport: http(process.env.ANVIL_JSON_RPC_URL),
 });
 
 export const localPublicClient = createPublicClient({
   chain: localChain,
-  transport: http(ANVIL_JSON_RPC_URL),
+  transport: http(process.env.ANVIL_JSON_RPC_URL),
 });

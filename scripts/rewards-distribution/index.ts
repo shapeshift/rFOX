@@ -1,10 +1,11 @@
-import { Address, parseAbiItem } from "viem";
-import { StakingLog } from "./events";
+import { Address } from "viem";
+import { StakeLog, UnstakeLog, stakeEvent, unstakeEvent } from "./events";
 import { assertUnreachable } from "./helpers";
 import { simulateStaking } from "./simulateStaking";
 import { localPublicClient } from "./constants";
+import { assert } from "console";
 
-const getLogs = async ({
+const getStakingLogs = async ({
   fromBlock,
   toBlock,
 }: {
@@ -12,27 +13,22 @@ const getLogs = async ({
   toBlock: bigint;
 }) => {
   const logs = await localPublicClient.getLogs({
-    // address: '0x'
-    events: [
-      parseAbiItem(
-        "event Stake(address indexed account, uint256 amount, string runeAddress)",
-      ),
-      parseAbiItem("event Unstake(address indexed user, uint256 amount)"),
-    ],
+    events: [stakeEvent, unstakeEvent],
     fromBlock,
     toBlock,
   });
-  return logs as StakingLog[];
+  return logs;
 };
 
-const getStakingAmount = (log: StakingLog): bigint => {
-  switch (log.eventName) {
+const getStakingAmount = (log: StakeLog | UnstakeLog): bigint => {
+  const eventName = log.eventName;
+  switch (eventName) {
     case "Stake":
       return log.args.amount;
     case "Unstake":
       return -log.args.amount;
     default:
-      assertUnreachable(log.eventName);
+      assertUnreachable(eventName);
   }
 
   throw Error("should be unreachable");
@@ -49,29 +45,30 @@ const getEpochBlockReward = (_epochEndBlockNumber: bigint) => {
 const getEpochBlockRange = () => {
   // Monkey-patched to 0 and 5 for testing for now since the current simulation only goes up to block 5
   const previousEpochEndBlockNumber = 0n;
-  const currentBlockNumber = 5n;
+  const currentBlockNumber = 500n;
   return {
-    fromBlockNumber: previousEpochEndBlockNumber,
-    toBlockNumber: currentBlockNumber,
+    fromBlock: previousEpochEndBlockNumber,
+    toBlock: currentBlockNumber,
   };
 };
 
 // TODO: this should only process 1 epoch at a time
 const main = async () => {
   await simulateStaking();
-  // While testing, and with the current simulation flow we only need logs from block 1 to 5 but this may change
-  const logs = await getLogs({ fromBlock: 0n, toBlock: 5n });
+
+  // iterate all blocks for the current epoch
+  const { fromBlock, toBlock } = getEpochBlockRange();
+
+  // Grab the first 500 or so blocks so we can simulate rewards distribution without worrying about how many blocks elapsed during contract deployment
+  const logs = await getStakingLogs({ fromBlock, toBlock });
   // index logs by block number
-  const logsByBlockNumber = logs.reduce<Record<string, StakingLog[]>>(
-    (acc, log) => {
-      if (!acc[log.blockNumber.toString()]) {
-        acc[log.blockNumber.toString()] = [];
-      }
-      acc[log.blockNumber.toString()].push(log);
-      return acc;
-    },
-    {},
-  );
+  const logsByBlockNumber = logs.reduce<Record<string, any[]>>((acc, log) => {
+    if (!acc[log.blockNumber.toString()]) {
+      acc[log.blockNumber.toString()] = [];
+    }
+    acc[log.blockNumber.toString()].push(log);
+    return acc;
+  }, {});
 
   // TODO: these will be initialized from the last epoch's state
   let totalStaked = 0n;
@@ -80,17 +77,10 @@ const main = async () => {
   // this must be initialized to empty
   const epochRewardByAccount: Record<Address, number> = {};
 
-  // iterate all blocks for the current epoch
-  const { fromBlockNumber, toBlockNumber } = getEpochBlockRange();
+  const epochBlockReward = getEpochBlockReward(toBlock);
 
-  const epochBlockReward = getEpochBlockReward(toBlockNumber);
-
-  for (
-    let blockNumber = fromBlockNumber;
-    blockNumber <= toBlockNumber;
-    blockNumber++
-  ) {
-    const incomingLogs: StakingLog[] | undefined =
+  for (let blockNumber = fromBlock; blockNumber <= toBlock; blockNumber++) {
+    const incomingLogs: (StakeLog | UnstakeLog)[] | undefined =
       logsByBlockNumber[blockNumber.toString()];
 
     // process logs if there are any

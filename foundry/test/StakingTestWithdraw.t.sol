@@ -40,6 +40,8 @@ contract FOXStakingTestWithdraw is Test {
     }
 
     function testCannotWithdrawWhenWithdrawalsPaused() public {
+        vm.expectEmit();
+        emit StakingV1.WithdrawalsPausedChanged(true);
         foxStaking.pauseWithdrawals();
 
         vm.startPrank(user);
@@ -86,6 +88,8 @@ contract FOXStakingTestWithdraw is Test {
         foxStaking.withdraw();
         vm.stopPrank();
 
+        vm.expectEmit();
+        emit StakingV1.WithdrawalsPausedChanged(false);
         foxStaking.unpauseWithdrawals();
 
         vm.startPrank(user);
@@ -169,5 +173,22 @@ contract FOXStakingTestWithdraw is Test {
         assertEq(foxToken.balanceOf(user), 0);
 
         vm.stopPrank();
+    }
+
+    function testWithdraw_cannotPauseAlreadyPaused() public {
+        vm.expectEmit();
+        emit StakingV1.WithdrawalsPausedChanged(true);
+        foxStaking.pauseWithdrawals();
+
+        vm.expectRevert("Withdrawals are paused");
+        foxStaking.pauseWithdrawals();
+
+        // unpause and try to unpause again
+        vm.expectEmit();
+        emit StakingV1.WithdrawalsPausedChanged(false);
+        foxStaking.unpauseWithdrawals();
+
+        vm.expectRevert("Withdrawals are not paused");
+        foxStaking.unpauseWithdrawals();
     }
 }

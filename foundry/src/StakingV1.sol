@@ -29,7 +29,7 @@ contract StakingV1 is
     uint256 public totalStaked;
     uint256 public totalCoolingDown;
 
-    uint256 public constant REWARD_RATE = 1_000_000_000;
+    uint256 public constant REWARD_RATE = 1e27;
     uint256 public constant WAD = 1e18;
     uint256 public lastUpdateTimestamp;
     uint256 public rewardPerTokenStored;
@@ -51,6 +51,9 @@ contract StakingV1 is
         string indexed oldRuneAddress,
         string indexed newRuneAddress
     );
+    event StakingPausedChanged(bool isPaused);
+    event WithdrawalsPausedChanged(bool isPaused);
+    event UnstakingPausedChanged(bool isPaused);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -61,6 +64,7 @@ contract StakingV1 is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         __Pausable_init();
+        __ReentrancyGuard_init();
         stakingToken = IERC20(stakingTokenAddress);
         cooldownPeriod = 28 days;
         lastUpdateTimestamp = block.timestamp;
@@ -75,33 +79,42 @@ contract StakingV1 is
     }
 
     /// @notice Pauses deposits
-    function pauseStaking() external onlyOwner {
+    function pauseStaking() external onlyOwner whenStakingNotPaused {
         stakingPaused = true;
+        emit StakingPausedChanged(true);
     }
 
     /// @notice Unpauses deposits
     function unpauseStaking() external onlyOwner {
+        require(stakingPaused, "Staking is not paused");
         stakingPaused = false;
+        emit StakingPausedChanged(false);
     }
 
     /// @notice Pauses withdrawals
-    function pauseWithdrawals() external onlyOwner {
+    function pauseWithdrawals() external onlyOwner whenWithdrawalsNotPaused {
         withdrawalsPaused = true;
+        emit WithdrawalsPausedChanged(true);
     }
 
     /// @notice Unpauses withdrawals
     function unpauseWithdrawals() external onlyOwner {
+        require(withdrawalsPaused, "Withdrawals are not paused");
         withdrawalsPaused = false;
+        emit WithdrawalsPausedChanged(false);
     }
 
     /// @notice Pauses unstaking
-    function pauseUnstaking() external onlyOwner {
+    function pauseUnstaking() external onlyOwner whenUnstakingNotPaused {
         unstakingPaused = true;
+        emit UnstakingPausedChanged(true);
     }
 
     /// @notice Unpauses unstaking
     function unpauseUnstaking() external onlyOwner {
+        require(unstakingPaused, "Unstaking is not paused");
         unstakingPaused = false;
+        emit UnstakingPausedChanged(false);
     }
 
     /// @notice Sets contract-level paused state
@@ -171,14 +184,14 @@ contract StakingV1 is
             "Rune address must be 43 characters"
         );
         require(amount > 0, "amount to stake must be greater than 0");
-        updateReward(msg.sender);
-        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+        _updateReward(msg.sender);
 
         StakingInfo storage info = stakingInfo[msg.sender];
         info.stakingBalance += amount;
         info.runeAddress = runeAddress;
         totalStaked += amount;
 
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         emit Stake(msg.sender, amount, runeAddress);
     }
 
@@ -196,7 +209,7 @@ contract StakingV1 is
             amount <= info.stakingBalance,
             "Unstake amount exceeds staked balance"
         );
-        updateReward(msg.sender);
+        _updateReward(msg.sender);
 
         // Set staking / unstaking amounts
         info.stakingBalance -= amount;
@@ -330,7 +343,7 @@ contract StakingV1 is
 
     /// @notice Updates all variables when changes to staking amounts are made.
     /// @param account The address of the account to update.
-    function updateReward(address account) internal {
+    function _updateReward(address account) internal {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTimestamp = block.timestamp;
         StakingInfo storage info = stakingInfo[account];

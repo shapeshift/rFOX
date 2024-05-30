@@ -79,8 +79,7 @@ contract StakingV1 is
     }
 
     /// @notice Pauses deposits
-    function pauseStaking() external onlyOwner {
-        require(!stakingPaused, "Staking is paused");
+    function pauseStaking() external onlyOwner whenStakingNotPaused {
         stakingPaused = true;
         emit StakingPausedChanged(true);
     }
@@ -93,8 +92,7 @@ contract StakingV1 is
     }
 
     /// @notice Pauses withdrawals
-    function pauseWithdrawals() external onlyOwner {
-        require(!withdrawalsPaused, "Withdrawals are paused");
+    function pauseWithdrawals() external onlyOwner whenWithdrawalsNotPaused {
         withdrawalsPaused = true;
         emit WithdrawalsPausedChanged(true);
     }
@@ -107,8 +105,7 @@ contract StakingV1 is
     }
 
     /// @notice Pauses unstaking
-    function pauseUnstaking() external onlyOwner {
-        require(!unstakingPaused, "Unstaking is paused");
+    function pauseUnstaking() external onlyOwner whenUnstakingNotPaused {
         unstakingPaused = true;
         emit UnstakingPausedChanged(true);
     }

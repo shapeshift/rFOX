@@ -878,7 +878,7 @@ contract FOXStakingTestUnstake is Test {
         vm.assertEq(balAfter - balBefore, 51);
     }
 
-       function testUnstake_cannotPauseAlreadyPaused() public {
+    function testUnstake_cannotPauseAlreadyPaused() public {
         vm.expectEmit();
         emit StakingV1.UnstakingPausedChanged(true);
         foxStaking.pauseUnstaking();

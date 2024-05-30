@@ -24,6 +24,9 @@ contract FOXStakingTestStaking is Test {
     }
 
     function testCannotStakeWhenStakingPaused() public {
+        // confirm we emit the correct event
+        vm.expectEmit();
+        emit StakingV1.StakingPausedChanged(true);
         foxStaking.pauseStaking();
 
         address user = address(0xBABE);
@@ -60,6 +63,8 @@ contract FOXStakingTestStaking is Test {
         foxStaking.stake(amount, runeAddress);
         vm.stopPrank();
 
+        vm.expectEmit();
+        emit StakingV1.StakingPausedChanged(false);
         foxStaking.unpauseStaking();
 
         vm.startPrank(user);
@@ -242,5 +247,22 @@ contract FOXStakingTestStaking is Test {
             );
             assertEq(runeAddress, runeAddresses[i]);
         }
+    }
+
+    function testStaking_cannotPauseAlreadyPaused() public {
+        vm.expectEmit();
+        emit StakingV1.StakingPausedChanged(true);
+        foxStaking.pauseStaking();
+
+        vm.expectRevert("Staking is paused");
+        foxStaking.pauseStaking();
+
+        // unpause and try to unpause again
+        vm.expectEmit();
+        emit StakingV1.StakingPausedChanged(false);
+        foxStaking.unpauseStaking();
+
+        vm.expectRevert("Staking is not paused");
+        foxStaking.unpauseStaking();
     }
 }

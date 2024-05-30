@@ -877,4 +877,21 @@ contract FOXStakingTestUnstake is Test {
         balAfter = foxToken.balanceOf(user2);
         vm.assertEq(balAfter - balBefore, 51);
     }
+
+    function testUnstake_cannotPauseAlreadyPaused() public {
+        vm.expectEmit();
+        emit StakingV1.UnstakingPausedChanged(true);
+        foxStaking.pauseUnstaking();
+
+        vm.expectRevert("Unstaking is paused");
+        foxStaking.pauseUnstaking();
+
+        // unpause and try to unpause again
+        vm.expectEmit();
+        emit StakingV1.UnstakingPausedChanged(false);
+        foxStaking.unpauseUnstaking();
+
+        vm.expectRevert("Unstaking is not paused");
+        foxStaking.unpauseUnstaking();
+    }
 }

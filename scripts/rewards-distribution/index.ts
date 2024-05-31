@@ -10,10 +10,53 @@ import { stakingV1Abi } from "./generated/abi-types";
 import assert from "assert";
 import { validateRewardsDistribution } from "./validation";
 
-const inquireBlockRange = async (): Promise<{
+const validatePositiveNumber = (value: number) => {
+  if (isNaN(value)) {
+    return "Please enter a valid number";
+  }
+
+  if (value < 0) {
+    return "Please enter a positive value";
+  }
+
+  return true;
+};
+
+const validatePositiveInteger = (value: number) => {
+  if (!Number.isInteger(value)) {
+    return "Please enter an integer";
+  }
+
+  return validatePositiveNumber(value);
+};
+
+const createValidateBlockNumber = (
+  minimumBlockNumber: bigint,
+  maximumBlockNumber: bigint,
+) => {
+  return (value: number) => {
+    if (value < minimumBlockNumber) {
+      return `Value must be greater than or equal to ${minimumBlockNumber}`;
+    }
+    if (value > maximumBlockNumber) {
+      return `Value must be less than or equal to ${maximumBlockNumber}`;
+    }
+    return validatePositiveInteger(value);
+  };
+};
+
+const inquireBlockRange = async (
+  minimumBlockNumber: bigint,
+  maximumBlockNumber: bigint,
+): Promise<{
   fromBlock: bigint;
   toBlock: bigint;
 }> => {
+  const validateBlockNumber = createValidateBlockNumber(
+    minimumBlockNumber,
+    maximumBlockNumber,
+  );
+
   const questions: QuestionCollection<{
     fromBlock: number;
     toBlock: number;
@@ -21,19 +64,26 @@ const inquireBlockRange = async (): Promise<{
     {
       type: "number",
       name: "fromBlock",
+      validate: validateBlockNumber,
       message: "What is the START block number of this epoch?",
       default: 216083216, // TODO: remove this default
     },
     {
       type: "number",
       name: "toBlock",
+      validate: (value: number, answers: { fromBlock: number }) => {
+        if (value <= answers.fromBlock) {
+          return "'to' block must be greater than 'from' block";
+        }
+        return validateBlockNumber(value);
+      },
       message: "What is the END block number of this epoch?",
       default: 216092990, // TODO: remove this default
     },
   ];
 
   const { fromBlock, toBlock } = await prompt(questions);
-  assert(fromBlock < toBlock, "Start block must be less than end block");
+
   return { fromBlock: BigInt(fromBlock), toBlock: BigInt(toBlock) };
 };
 
@@ -42,6 +92,7 @@ const inquireTotalRuneAmountToDistroBaseUnit = async (): Promise<bigint> => {
     {
       type: "number",
       name: "totalRuneAmountPrecision",
+      validate: validatePositiveNumber,
       message:
         "What is the total amount of RUNE to distribute this epoch? Enter this amount in RUNE, not in base units (RUNE*10^8).",
     },
@@ -84,23 +135,9 @@ const confirmResponses = async (
 };
 
 const main = async () => {
-  const { fromBlock, toBlock } = await inquireBlockRange();
-
-  const totalRuneAmountToDistroBaseUnit =
-    await inquireTotalRuneAmountToDistroBaseUnit();
-
-  await confirmResponses(
-    fromBlock,
-    toBlock,
-    fromBaseUnit(totalRuneAmountToDistroBaseUnit, RUNE_DECIMALS),
-  );
-
-  const [previousEpochEndBlock, epochEndBlock, [initLog]] = await Promise.all([
+  const [currentBlock, [initLog]] = await Promise.all([
     publicClient.getBlock({
-      blockNumber: fromBlock - 1n,
-    }),
-    publicClient.getBlock({
-      blockNumber: toBlock,
+      blockTag: "latest",
     }),
     publicClient.getContractEvents({
       address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
@@ -112,6 +149,30 @@ const main = async () => {
   ]);
 
   const contractCreationBlockNumber = initLog.blockNumber;
+  const currentBlockNumber = currentBlock.number;
+
+  const { fromBlock, toBlock } = await inquireBlockRange(
+    contractCreationBlockNumber,
+    currentBlockNumber,
+  );
+
+  const totalRuneAmountToDistroBaseUnit =
+    await inquireTotalRuneAmountToDistroBaseUnit();
+
+  await confirmResponses(
+    fromBlock,
+    toBlock,
+    fromBaseUnit(totalRuneAmountToDistroBaseUnit, RUNE_DECIMALS),
+  );
+
+  const [previousEpochEndBlock, epochEndBlock] = await Promise.all([
+    publicClient.getBlock({
+      blockNumber: fromBlock - 1n,
+    }),
+    publicClient.getBlock({
+      blockNumber: toBlock,
+    }),
+  ]);
 
   const contractCreationBlock = await publicClient.getBlock({
     blockNumber: contractCreationBlockNumber,

@@ -35,22 +35,37 @@ contract StakingV1 is
     uint256 public rewardPerTokenStored;
 
     event UpdateCooldownPeriod(uint256 newCooldownPeriod);
+
+    /// @notice emits an event for when a user stakes tokens
+    /// @dev WARNING: a user can also update their address with setRuneAddress
+    /// @param account the address of the account that called stake
+    /// @param amount the amount of tokens being staked
+    /// @param runeAddress the RUNE address associated with the account
     event Stake(
         address indexed account,
         uint256 amount,
         string indexed runeAddress
     );
+
     event Unstake(
         address indexed account,
         uint256 amount,
         uint256 cooldownExpiry
     );
     event Withdraw(address indexed account, uint256 amount);
+
+    /// @notice emits an event for when user calls setRuneAddress
+    /// @dev WARNING: this event is not fired when a user calls stake and sets a rune address through that function.
+    /// Please see the Stake event for that information.
+    /// @param account The address of the account that called setRuneAddress
+    /// @param oldRuneAddress The old rune address associated with the account
+    /// @param newRuneAddress The new rune address associated with the account
     event SetRuneAddress(
         address indexed account,
         string indexed oldRuneAddress,
         string indexed newRuneAddress
     );
+
     event StakingPausedChanged(bool isPaused);
     event WithdrawalsPausedChanged(bool isPaused);
     event UnstakingPausedChanged(bool isPaused);

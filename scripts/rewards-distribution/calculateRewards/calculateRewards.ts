@@ -250,14 +250,14 @@ export const calculateRewards = (
     );
   }
 
-  const epochMetadataByAccount: Record<Address, bigint> = {};
+  const earnedRewardsByAccount: Record<Address, bigint> = {};
 
   for (const [account, epochEndReward] of Object.entries(
     epochEndRewardsByAccount,
   )) {
-    epochMetadataByAccount[account as Address] =
+    earnedRewardsByAccount[account as Address] =
       epochEndReward - (epochStartRewardsByAccount[account as Address] ?? 0n);
   }
 
-  return epochMetadataByAccount;
+  return earnedRewardsByAccount;
 };

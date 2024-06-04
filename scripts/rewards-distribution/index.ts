@@ -14,6 +14,8 @@ import {
 } from "./input";
 import { distributeAmount } from "./distributeAmount/distributeAmount";
 import { Address } from "viem";
+import { orderBy } from "lodash";
+import { getLatestRuneAddressByAccount } from "./getLatestRuneAddressByAccount";
 
 const main = async () => {
   const [currentBlock, [initLog]] = await Promise.all([
@@ -65,19 +67,23 @@ const main = async () => {
     toBlock,
   );
 
-  const epochMetadataByAccount = calculateRewards(
+  // sort logs by block number and log index, ascending
+  // this is necessary because logs can arrive from RPC out of order
+  const orderedLogs = orderBy(
+    logs,
+    ["blockNumber", "logIndex"],
+    ["asc", "asc"],
+  );
+
+  const earnedRewardsByAccount = calculateRewards(
     contractCreationBlock,
     previousEpochEndBlock,
     epochEndBlock,
-    logs,
+    orderedLogs,
   );
 
-  const earnedRewardsByAccount: Record<Address, bigint> = {};
-  for (const [account, { earnedRewards }] of Object.entries(
-    epochMetadataByAccount,
-  )) {
-    earnedRewardsByAccount[account as Address] = earnedRewards;
-  }
+  // Get the latest rune address for each account
+  const runeAddressByAccount = getLatestRuneAddressByAccount(orderedLogs);
 
   await validateRewardsDistribution(
     publicClient,
@@ -96,8 +102,8 @@ const main = async () => {
 
   console.log("Rewards distribution calculated successfully!");
 
-  const tableRows = Object.entries(epochMetadataByAccount).map(
-    ([account, { runeAddress }]) => {
+  const tableRows = Object.entries(runeAddressByAccount).map(
+    ([account, runeAddress]) => {
       return {
         account,
         runeAddress,

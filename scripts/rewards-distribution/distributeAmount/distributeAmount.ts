@@ -8,8 +8,8 @@ export const distributeAmount = (
   totalRuneAmountToDistroBaseUnit: bigint,
   earnedRewardsByAccount: Record<Address, bigint>,
 ) => {
-  // Set the precision to the maximum possible value to avoid rounding errors
-  BigNumber.config({ DECIMAL_PLACES: 1e9 });
+  // Set the precision to a high value to avoid rounding errors
+  BigNumber.config({ DECIMAL_PLACES: 100 });
 
   const totalEarnedRewards = Object.values(earnedRewardsByAccount).reduce(
     (sum, earnedRewards) => sum + earnedRewards,

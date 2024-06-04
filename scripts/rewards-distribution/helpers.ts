@@ -3,11 +3,12 @@ import {
   ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
   GET_LOGS_BLOCK_STEP_SIZE,
 } from "./constants";
-import { AbiEvent, Block, Log, PublicClient } from "viem";
+import { AbiEvent, Log, PublicClient } from "viem";
 import cliProgress from "cli-progress";
 import colors from "ansi-colors";
-import { RFoxEvent, RFoxLog, StakeLog, UnstakeLog } from "./events";
+import { RFoxLog, StakeLog, UnstakeLog } from "./events";
 import { stakingV1Abi } from "./generated/abi-types";
+import assert from "assert";
 
 // we cache promises to prevent async race conditions hydrating the cache
 const blockNumberToTimestampCache: Record<string, Promise<bigint>> = {};

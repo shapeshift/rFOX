@@ -1,6 +1,6 @@
 import { Address, Block } from "viem";
 import { RFoxLog, StakeLog, UnstakeLog } from "../events";
-import { getStakingAmount, isLogType } from "../helpers";
+import { isLogType } from "../helpers";
 import { REWARD_RATE, WAD } from "../constants";
 import assert from "assert";
 
@@ -143,14 +143,14 @@ export const calculateRewards = (
   // the previous epoch. This prevents us missing rewards for the first block in the epoch.
   previousEpochEndBlock: Block,
   epochEndBlock: Block,
-  logs: { log: RFoxLog; timestamp: bigint }[],
+  orderedLogs: { log: RFoxLog; timestamp: bigint }[],
 ) => {
   let totalStaked = 0n;
   let rewardPerTokenStored = 0n;
   let lastUpdateTimestamp = contractCreationBlock.timestamp;
   const stakingInfoByAccount: Record<Address, StakingInfo> = {};
 
-  const stakingLogs = logs.filter(
+  const stakingLogs = orderedLogs.filter(
     (
       logWithTimestamp,
     ): logWithTimestamp is { log: StakeLog | UnstakeLog; timestamp: bigint } =>
@@ -250,19 +250,13 @@ export const calculateRewards = (
     );
   }
 
-  const epochMetadataByAccount: Record<
-    Address,
-    { runeAddress: string; earnedRewards: bigint }
-  > = {};
+  const epochMetadataByAccount: Record<Address, bigint> = {};
 
   for (const [account, epochEndReward] of Object.entries(
     epochEndRewardsByAccount,
   )) {
-    epochMetadataByAccount[account as Address] = {
-      runeAddress: stakingInfoByAccount[account as Address].runeAddress,
-      earnedRewards:
-        epochEndReward - (epochStartRewardsByAccount[account as Address] ?? 0n),
-    };
+    epochMetadataByAccount[account as Address] =
+      epochEndReward - (epochStartRewardsByAccount[account as Address] ?? 0n);
   }
 
   return epochMetadataByAccount;

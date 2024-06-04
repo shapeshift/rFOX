@@ -13,6 +13,7 @@ import {
   inquireTotalRuneAmountToDistroBaseUnit,
 } from "./input";
 import { distributeAmount } from "./distributeAmount/distributeAmount";
+import { Address } from "viem";
 
 const main = async () => {
   const [currentBlock, [initLog]] = await Promise.all([
@@ -64,12 +65,19 @@ const main = async () => {
     toBlock,
   );
 
-  const earnedRewardsByAccount = calculateRewards(
+  const epochMetadataByAccount = calculateRewards(
     contractCreationBlock,
     previousEpochEndBlock,
     epochEndBlock,
     logs,
   );
+
+  const earnedRewardsByAccount: Record<Address, bigint> = {};
+  for (const [account, { earnedRewards }] of Object.entries(
+    epochMetadataByAccount,
+  )) {
+    earnedRewardsByAccount[account as Address] = earnedRewards;
+  }
 
   await validateRewardsDistribution(
     publicClient,
@@ -78,13 +86,28 @@ const main = async () => {
     toBlock,
   );
 
+  console.log("Calculating rewards distribution...");
+
   // compute the allocation of rewards as a percentage of the totalRuneAmountToDistroBaseUnit
   const runeAllocationBaseUnitByAccount = distributeAmount(
     totalRuneAmountToDistroBaseUnit,
     earnedRewardsByAccount,
   );
 
-  console.log(runeAllocationBaseUnitByAccount);
+  console.log("Rewards distribution calculated successfully!");
+
+  const tableRows = Object.entries(epochMetadataByAccount).map(
+    ([account, { runeAddress }]) => {
+      return {
+        account,
+        runeAddress,
+        runeAllocationBaseUnit:
+          runeAllocationBaseUnitByAccount[account as Address],
+      };
+    },
+  );
+
+  console.table(tableRows);
 
   // TODO: Confirm details again before proceeding
 };

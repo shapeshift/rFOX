@@ -4,11 +4,11 @@ import { getStakingAmount, isLogType } from "../helpers";
 import { REWARD_RATE, WAD } from "../constants";
 import assert from "assert";
 
-type StakingInfo = {
+export type StakingInfo = {
   stakingBalance: bigint;
   earnedRewards: bigint;
   rewardPerTokenStored: bigint;
-  runeAddress: String;
+  runeAddress: string;
 };
 
 const getEmptyStakingInfo = () => {
@@ -83,7 +83,7 @@ const updateReward = (
 
 const stake = (
   amount: bigint,
-  runeAddress: String,
+  runeAddress: string,
   stakingInfo: StakingInfo,
   rewardPerTokenStored: bigint,
   totalStaked: bigint,
@@ -250,14 +250,20 @@ export const calculateRewards = (
     );
   }
 
-  const earnedRewardsByAccount: Record<Address, bigint> = {};
+  const epochMetadataByAccount: Record<
+    Address,
+    { runeAddress: string; earnedRewards: bigint }
+  > = {};
 
   for (const [account, epochEndReward] of Object.entries(
     epochEndRewardsByAccount,
   )) {
-    earnedRewardsByAccount[account as Address] =
-      epochEndReward - (epochStartRewardsByAccount[account as Address] ?? 0n);
+    epochMetadataByAccount[account as Address] = {
+      runeAddress: stakingInfoByAccount[account as Address].runeAddress,
+      earnedRewards:
+        epochEndReward - (epochStartRewardsByAccount[account as Address] ?? 0n),
+    };
   }
 
-  return earnedRewardsByAccount;
+  return epochMetadataByAccount;
 };

@@ -12,6 +12,7 @@ import {
   inquireBlockRange,
   inquireTotalRuneAmountToDistroBaseUnit,
 } from "./input";
+import { distributeAmount } from "./distributeAmount/distributeAmount";
 
 const main = async () => {
   const [currentBlock, [initLog]] = await Promise.all([
@@ -76,6 +77,14 @@ const main = async () => {
     fromBlock,
     toBlock,
   );
+
+  // compute the allocation of rewards as a percentage of the totalRuneAmountToDistroBaseUnit
+  const runeAllocationBaseUnitByAccount = distributeAmount(
+    totalRuneAmountToDistroBaseUnit,
+    earnedRewardsByAccount,
+  );
+
+  console.log(runeAllocationBaseUnitByAccount);
 
   // TODO: Confirm details again before proceeding
 };

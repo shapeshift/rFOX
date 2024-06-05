@@ -3,13 +3,7 @@ import { RFoxLog, StakeLog, UnstakeLog } from "../events";
 import { isLogType } from "../helpers";
 import { REWARD_RATE, WAD } from "../constants";
 import assert from "assert";
-
-export type StakingInfo = {
-  stakingBalance: bigint;
-  earnedRewards: bigint;
-  rewardPerTokenStored: bigint;
-  runeAddress: string;
-};
+import { StakingInfo } from "../types";
 
 const getEmptyStakingInfo = () => {
   return {

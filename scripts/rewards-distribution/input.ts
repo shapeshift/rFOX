@@ -41,28 +41,31 @@ export const inquireBlockRange = async (
   minimumBlockNumber: bigint,
   maximumBlockNumber: bigint,
 ): Promise<{
-  fromBlock: bigint;
-  toBlock: bigint;
+  epochStartBlockNumber: bigint;
+  epochEndBlockNumber: bigint;
 }> => {
   const validateBlockNumber = createValidateBlockNumber(
     minimumBlockNumber,
     maximumBlockNumber,
   );
 
-  const validateToBlock = (value: number, answers: { fromBlock: number }) => {
-    if (value <= answers.fromBlock) {
+  const validateEpochEndBlockNumber = (
+    value: number,
+    answers: { epochStartBlockNumber: number },
+  ) => {
+    if (value <= answers.epochStartBlockNumber) {
       return "'to' block must be greater than 'from' block";
     }
     return validateBlockNumber(value);
   };
 
   const questions: QuestionCollection<{
-    fromBlock: number;
-    toBlock: number;
+    epochStartBlockNumber: number;
+    epochEndBlockNumber: number;
   }> = [
     {
       type: "number",
-      name: "fromBlock",
+      name: "epochStartBlockNumber",
       validate: validateBlockNumber,
       // clear the input on validation error. Return type here is `number|undefined` not boolean (eew)
       filter: (input) =>
@@ -72,19 +75,25 @@ export const inquireBlockRange = async (
     },
     {
       type: "number",
-      name: "toBlock",
-      validate: validateToBlock,
+      name: "epochEndBlockNumber",
+      validate: validateEpochEndBlockNumber,
       // clear the input on validation error. Return type here is `number|undefined` not boolean (eew)
       filter: (input, answers) =>
-        validateToBlock(input, answers) === true ? input : undefined,
+        validateEpochEndBlockNumber(input, answers) === true
+          ? input
+          : undefined,
       message: "What is the END block number of this epoch?",
       default: 216092990, // TODO: remove this default
     },
   ];
 
-  const { fromBlock, toBlock } = await prompt(questions);
+  const { epochStartBlockNumber, epochEndBlockNumber } =
+    await prompt(questions);
 
-  return { fromBlock: BigInt(fromBlock), toBlock: BigInt(toBlock) };
+  return {
+    epochStartBlockNumber: BigInt(epochStartBlockNumber),
+    epochEndBlockNumber: BigInt(epochEndBlockNumber),
+  };
 };
 
 export const inquireTotalRuneAmountToDistroBaseUnit =
@@ -114,8 +123,8 @@ export const inquireTotalRuneAmountToDistroBaseUnit =
   };
 
 export const confirmResponses = async (
-  fromBlock: bigint,
-  toBlock: bigint,
+  epochStartBlockNumber: bigint,
+  epochEndBlockNumber: bigint,
   totalRuneAmountToDistroBaseUnit: number,
 ) => {
   const questions: QuestionCollection<{ confirm: boolean }> = [
@@ -124,8 +133,8 @@ export const confirmResponses = async (
       name: "confirm",
       message: [
         "Do you want to proceed with these values?",
-        `* Start block: ${fromBlock}`,
-        `* End block: ${toBlock}`,
+        `* Start block: ${epochStartBlockNumber}`,
+        `* End block: ${epochEndBlockNumber}`,
         `* Total RUNE to distribute: ${totalRuneAmountToDistroBaseUnit} RUNE`,
       ].join("\n"),
     },

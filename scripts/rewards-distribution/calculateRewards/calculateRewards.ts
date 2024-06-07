@@ -1,14 +1,14 @@
 import { Address, Block } from "viem";
 import { RFoxLog, StakeLog, UnstakeLog } from "../events";
-import { getStakingAmount, isLogType } from "../helpers";
+import { isLogType } from "../helpers";
 import { REWARD_RATE, WAD } from "../constants";
 import assert from "assert";
 
-type StakingInfo = {
+export type StakingInfo = {
   stakingBalance: bigint;
   earnedRewards: bigint;
   rewardPerTokenStored: bigint;
-  runeAddress: String;
+  runeAddress: string;
 };
 
 const getEmptyStakingInfo = () => {
@@ -83,7 +83,7 @@ const updateReward = (
 
 const stake = (
   amount: bigint,
-  runeAddress: String,
+  runeAddress: string,
   stakingInfo: StakingInfo,
   rewardPerTokenStored: bigint,
   totalStaked: bigint,
@@ -143,14 +143,14 @@ export const calculateRewards = (
   // the previous epoch. This prevents us missing rewards for the first block in the epoch.
   previousEpochEndBlock: Block,
   epochEndBlock: Block,
-  logs: { log: RFoxLog; timestamp: bigint }[],
+  orderedLogs: { log: RFoxLog; timestamp: bigint }[],
 ) => {
   let totalStaked = 0n;
   let rewardPerTokenStored = 0n;
   let lastUpdateTimestamp = contractCreationBlock.timestamp;
   const stakingInfoByAccount: Record<Address, StakingInfo> = {};
 
-  const stakingLogs = logs.filter(
+  const stakingLogs = orderedLogs.filter(
     (
       logWithTimestamp,
     ): logWithTimestamp is { log: StakeLog | UnstakeLog; timestamp: bigint } =>

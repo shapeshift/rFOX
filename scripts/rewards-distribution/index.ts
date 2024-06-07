@@ -12,6 +12,10 @@ import {
   inquireBlockRange,
   inquireTotalRuneAmountToDistroBaseUnit,
 } from "./input";
+import { distributeAmount } from "./distributeAmount/distributeAmount";
+import { Address } from "viem";
+import { orderBy } from "lodash";
+import { getLatestRuneAddressByAccount } from "./getLatestRuneAddressByAccount";
 
 const main = async () => {
   const [currentBlock, [initLog]] = await Promise.all([
@@ -63,12 +67,23 @@ const main = async () => {
     toBlock,
   );
 
+  // sort logs by block number and log index, ascending
+  // this is necessary because logs can arrive from RPC out of order
+  const orderedLogs = orderBy(
+    logs,
+    ["blockNumber", "logIndex"],
+    ["asc", "asc"],
+  );
+
   const earnedRewardsByAccount = calculateRewards(
     contractCreationBlock,
     previousEpochEndBlock,
     epochEndBlock,
-    logs,
+    orderedLogs,
   );
+
+  // Get the latest rune address for each account
+  const runeAddressByAccount = getLatestRuneAddressByAccount(orderedLogs);
 
   await validateRewardsDistribution(
     publicClient,
@@ -76,6 +91,29 @@ const main = async () => {
     fromBlock,
     toBlock,
   );
+
+  console.log("Calculating rewards distribution...");
+
+  // compute the allocation of rewards as a percentage of the totalRuneAmountToDistroBaseUnit
+  const runeAllocationBaseUnitByAccount = distributeAmount(
+    totalRuneAmountToDistroBaseUnit,
+    earnedRewardsByAccount,
+  );
+
+  console.log("Rewards distribution calculated successfully!");
+
+  const tableRows = Object.entries(runeAddressByAccount).map(
+    ([account, runeAddress]) => {
+      return {
+        account,
+        runeAddress,
+        runeAllocationBaseUnit:
+          runeAllocationBaseUnitByAccount[account as Address],
+      };
+    },
+  );
+
+  console.table(tableRows);
 
   // TODO: Confirm details again before proceeding
 };

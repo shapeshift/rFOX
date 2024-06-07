@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: true
 
-    name: Typescript project
+    name: Typescript scripts
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

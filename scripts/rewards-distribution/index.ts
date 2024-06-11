@@ -15,7 +15,7 @@ import {
 import { distributeAmount } from "./distributeAmount/distributeAmount";
 import { Address } from "viem";
 import { orderBy } from "lodash";
-import { getLatestRuneAddressByAccount } from "./getLatestRuneAddressByAccount";
+import { getStakingInfoByAccount } from "./getStakingInfoByAccount";
 
 const main = async () => {
   const [currentBlock, [initLog]] = await Promise.all([
@@ -82,8 +82,12 @@ const main = async () => {
     orderedLogs,
   );
 
-  // Get the latest rune address for each account
-  const runeAddressByAccount = getLatestRuneAddressByAccount(orderedLogs);
+  const accounts = Object.keys(earnedRewardsByAccount) as Address[];
+  const epochEndStakingInfoByAccount = await getStakingInfoByAccount(
+    publicClient,
+    accounts,
+    toBlock,
+  );
 
   await validateRewardsDistribution(
     publicClient,
@@ -102,8 +106,8 @@ const main = async () => {
 
   console.log("Rewards distribution calculated successfully!");
 
-  const tableRows = Object.entries(runeAddressByAccount).map(
-    ([account, runeAddress]) => {
+  const tableRows = Object.entries(epochEndStakingInfoByAccount).map(
+    ([account, { runeAddress }]) => {
       return {
         account,
         runeAddress,

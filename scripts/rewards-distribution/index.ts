@@ -34,26 +34,24 @@ const main = async () => {
   const contractCreationBlockNumber = initLog.blockNumber;
   const currentBlockNumber = currentBlock.number;
 
-  const { fromBlock, toBlock } = await inquireBlockRange(
-    contractCreationBlockNumber,
-    currentBlockNumber,
-  );
+  const { epochStartBlockNumber, epochEndBlockNumber } =
+    await inquireBlockRange(contractCreationBlockNumber, currentBlockNumber);
 
   const totalRuneAmountToDistroBaseUnit =
     await inquireTotalRuneAmountToDistroBaseUnit();
 
   await confirmResponses(
-    fromBlock,
-    toBlock,
+    epochStartBlockNumber,
+    epochEndBlockNumber,
     fromBaseUnit(totalRuneAmountToDistroBaseUnit, RUNE_DECIMALS),
   );
 
   const [previousEpochEndBlock, epochEndBlock] = await Promise.all([
     publicClient.getBlock({
-      blockNumber: fromBlock - 1n,
+      blockNumber: epochStartBlockNumber - 1n,
     }),
     publicClient.getBlock({
-      blockNumber: toBlock,
+      blockNumber: epochEndBlockNumber,
     }),
   ]);
 
@@ -64,7 +62,7 @@ const main = async () => {
   const logs = await getLogsChunked(
     publicClient,
     contractCreationBlockNumber,
-    toBlock,
+    epochEndBlockNumber,
   );
 
   // sort logs by block number and log index, ascending
@@ -86,14 +84,14 @@ const main = async () => {
   const epochEndStakingInfoByAccount = await getStakingInfoByAccount(
     publicClient,
     accounts,
-    toBlock,
+    epochEndBlockNumber,
   );
 
   await validateRewardsDistribution(
     publicClient,
     earnedRewardsByAccount,
-    fromBlock,
-    toBlock,
+    epochStartBlockNumber,
+    epochEndBlockNumber,
   );
 
   console.log("Calculating rewards distribution...");
@@ -118,8 +116,6 @@ const main = async () => {
   );
 
   console.table(tableRows);
-
-  // TODO: Confirm details again before proceeding
 };
 
 main();

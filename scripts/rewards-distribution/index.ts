@@ -16,6 +16,7 @@ import { distributeAmount } from "./distributeAmount/distributeAmount";
 import { Address } from "viem";
 import { orderBy } from "lodash";
 import { getStakingInfoByAccount } from "./getStakingInfoByAccount";
+import { assertValidTotalRuneAllocation } from "./assertValidTotalRuneAllocation/assertValidTotalRuneAllocation";
 
 const main = async () => {
   const [currentBlock, [initLog]] = await Promise.all([
@@ -100,6 +101,12 @@ const main = async () => {
   const runeAllocationBaseUnitByAccount = distributeAmount(
     totalRuneAmountToDistroBaseUnit,
     earnedRewardsByAccount,
+  );
+
+  // Validate the sum of the allocations is exactly the total amount
+  assertValidTotalRuneAllocation(
+    runeAllocationBaseUnitByAccount,
+    totalRuneAmountToDistroBaseUnit,
   );
 
   console.log("Rewards distribution calculated successfully!");

@@ -4,8 +4,8 @@
 
 ### Arbitrum One - Alpha deployments for testing only - DO NOT USE
 
-- ERC1967Proxy: `0x0c66f315542fdec1d312c415b14eef614b0910ef`
-- FoxStakingV1.sol: `0x06875e37e780a5aed7e57dc648d5ae7c455fbb55`
+- ERC1967Proxy: `0xac2a4fd70bcd8bab0662960455c363735f0e2b56`
+- FoxStakingV1.sol: `0x4F9C6A6cc987DE98C8109e121516008906a899C9`
 
 ## Getting started
 

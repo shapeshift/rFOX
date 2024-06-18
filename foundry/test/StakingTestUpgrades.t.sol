@@ -80,4 +80,47 @@ contract FoxStakingTestUpgrades is Test {
         // Attempt to perform the upgrade, but as a non-owner
         upgradeHelper.doUpgrade(nonOwner, foxStakingProxy);
     }
+
+    function testChangeOwnerAndUpgrade() public {
+        // Check the current version
+        uint256 expectedCurrentVersion = 1;
+        assertEq(foxStakingV1.version(), expectedCurrentVersion);
+
+        address newOwner = address(0x0FF1CE);
+
+        // confirm the new owner cannot upgrade yet!
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                address(newOwner)
+            )
+        );
+
+        // Attempt to perform the upgrade, but as a non-owner
+        upgradeHelper.doUpgrade(newOwner, foxStakingProxy);
+
+        // confrim still on old version
+        assertEq(foxStakingV1.version(), expectedCurrentVersion);
+
+        // Change the owner 
+        vm.startPrank(owner);
+        foxStakingV1.transferOwnership(newOwner);
+        vm.stopPrank();
+
+        // Check the new owner
+        assertEq(Ownable(foxStakingProxy).owner(), newOwner);
+
+        // Perform the upgrade
+        upgradeHelper.doUpgrade(newOwner, foxStakingProxy);
+
+        MockStakingV2 foxStakingV2 = MockStakingV2(foxStakingProxy);
+
+        // Check the new version
+        uint256 expectedUpgradedVersion = 2;
+        assertEq(foxStakingV2.version(), expectedUpgradedVersion);
+
+        // Check we can call the new function
+        string memory result = foxStakingV2.newV2Function();
+        assertEq(result, "new v2 function");
+    }
 }

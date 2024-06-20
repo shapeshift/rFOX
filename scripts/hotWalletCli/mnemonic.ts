@@ -68,8 +68,9 @@ export const create = async (): Promise<{
   const mnemonic = generateMnemonic()
   const encryptedMnemonic = encryptMnemonic(mnemonic, password)
 
-  // save file as related to epoch
+  // TODO: save file as related to epoch
   const keystoreFile = path.join(RFOX_DIR, 'keystore.txt')
+
   fs.writeFileSync(keystoreFile, encryptedMnemonic, 'utf8')
 
   return { mnemonic, keystoreFile }

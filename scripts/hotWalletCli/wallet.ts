@@ -49,8 +49,7 @@ export class Wallet {
         messages: [
           {
             '@type': '/types.MsgSend',
-            //from_address: SHAPESHIFT_MULTISIG_ADDRESS,
-            from_address: 'thor10prpfj07j6a7rvtd5tfqhdzp8xsypzatfrc2v5',
+            from_address: SHAPESHIFT_MULTISIG_ADDRESS,
             to_address: address,
             amount: [
               {
@@ -60,6 +59,7 @@ export class Wallet {
             ],
           },
         ],
+        // TODO: update memo as related to epoch
         memo: 'rFOX distribution funding (epoch test)',
         timeout_height: '0',
         extension_options: [],
@@ -114,6 +114,7 @@ export const fund = async (wallet: Wallet, amount: string) => {
   const unsignedTx = await wallet.buildFundingTransaction(amount)
   const unsignedTxFile = path.join(RFOX_DIR, 'unsigned_tx.json')
 
+  // TODO: save file as related to epoch
   fs.writeFileSync(unsignedTxFile, JSON.stringify(unsignedTx, null, 2), 'utf8')
 
   info(`Unsigned funding transaction created (${unsignedTxFile})`)

@@ -10,9 +10,9 @@ const run = async () => {
   const { mnemonic, keystoreFile: keystore } = await create()
 
   info(`Encrypted keystore file created (${keystore})`)
-  info('Please back up your mnemonic in another secure way in case keystore file recovery fails!')
+  info('Please back up your mnemonic in another secure way in case keystore file recovery fails!!!')
   info(`Mnemonic: ${mnemonic}`)
-  warn('DO NOT INTERACT WITH THIS WALLET FOR ANY REASON OUTSIDE OF THIS SCRIPT!')
+  warn('DO NOT INTERACT WITH THIS WALLET FOR ANY REASON OUTSIDE OF THIS SCRIPT!!!')
 
   const confirmed = await prompts.confirm({
     message: 'Have you securely backed up your mnemonic? ',

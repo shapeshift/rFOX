@@ -102,7 +102,7 @@ contract FoxStakingTestUpgrades is Test {
         // confrim still on old version
         assertEq(foxStakingV1.version(), expectedCurrentVersion);
 
-        // Change the owner 
+        // Change the owner
         vm.startPrank(owner);
         foxStakingV1.transferOwnership(newOwner);
         vm.stopPrank();

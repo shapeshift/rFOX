@@ -3,7 +3,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import * as prompts from '@inquirer/prompts'
 import { generateMnemonic, validateMnemonic } from 'bip39'
-import { error } from './output.js'
+import { error } from './logging.js'
 import { RFOX_DIR } from './constants.js'
 
 const recoveryChoices = [

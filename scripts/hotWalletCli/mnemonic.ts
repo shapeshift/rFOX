@@ -1,10 +1,10 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
 import * as prompts from '@inquirer/prompts'
 import { generateMnemonic, validateMnemonic } from 'bip39'
-import crypto from 'node:crypto'
-import fs from 'node:fs'
 import { error } from './output.js'
-
-export const KEYSTORE_FILE_PATH = 'keystore.txt'
+import { RFOX_DIR } from './constants.js'
 
 const recoveryChoices = [
   {
@@ -48,7 +48,7 @@ const decryptMnemonic = (encryptedMnemonic: string, password: string): string | 
 
 export const create = async (): Promise<{
   mnemonic: string
-  keystore: string
+  keystoreFile: string
 }> => {
   const password = await prompts.password({
     message: 'Enter a password for encrypting keystore file: ',
@@ -69,21 +69,20 @@ export const create = async (): Promise<{
   const encryptedMnemonic = encryptMnemonic(mnemonic, password)
 
   // save file as related to epoch
-  fs.writeFileSync(KEYSTORE_FILE_PATH, encryptedMnemonic, 'utf8')
+  const keystoreFile = path.join(RFOX_DIR, 'keystore.txt')
+  fs.writeFileSync(keystoreFile, encryptedMnemonic, 'utf8')
 
-  return { mnemonic, keystore: KEYSTORE_FILE_PATH }
+  return { mnemonic, keystoreFile }
 }
 
-const readKeystore = (path: string): string | undefined => {
-  try {
-    return fs.readFileSync(path, 'utf8')
-  } catch (err) {
-    error('No keystore file found.')
-  }
-}
-
-export const recoverKeystore = async (path: string, attempt = 0): Promise<string> => {
-  const encryptedMnemonic = readKeystore(path)
+export const recoverKeystore = async (keystoreFile: string, attempt = 0): Promise<string> => {
+  const encryptedMnemonic = (() => {
+    try {
+      return fs.readFileSync(keystoreFile, 'utf8')
+    } catch (err) {
+      error('No keystore file found.')
+    }
+  })()
 
   if (!encryptedMnemonic) {
     return recoveryChoice(
@@ -100,7 +99,7 @@ export const recoverKeystore = async (path: string, attempt = 0): Promise<string
   const mnemonic = decryptMnemonic(encryptedMnemonic, password)
 
   if (!mnemonic) {
-    return recoveryChoice(attempt)
+    return recoveryChoice(attempt, recoveryChoices, keystoreFile)
   }
 
   return mnemonic
@@ -110,13 +109,14 @@ const recoverMnemonic = async (mnemonic: string, attempt = 1): Promise<string> =
   const valid = validateMnemonic(mnemonic)
 
   if (!valid) {
+    error('Mnemonic not valid.')
     return recoveryChoice(attempt)
   }
 
   return mnemonic
 }
 
-const recoveryChoice = async (attempt: number, choices = recoveryChoices): Promise<string> => {
+const recoveryChoice = async (attempt: number, choices = recoveryChoices, keystoreFile = ''): Promise<string> => {
   if (attempt >= 2) {
     error('Failed to recover hot wallet, exiting.')
     process.exit(1)
@@ -129,11 +129,11 @@ const recoveryChoice = async (attempt: number, choices = recoveryChoices): Promi
 
   switch (choice) {
     case 'password': {
-      return recoverKeystore(KEYSTORE_FILE_PATH, ++attempt)
+      return recoverKeystore(keystoreFile, ++attempt)
     }
     case 'file': {
       const path = await prompts.input({
-        message: 'Enter absolute path to your keystore file (ex. /home/user/keystore.txt): ',
+        message: `Enter absolute path to your keystore file (ex. /home/user/rfox/keystore.txt): `,
       })
 
       return recoverKeystore(path, ++attempt)

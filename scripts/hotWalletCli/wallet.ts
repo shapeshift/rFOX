@@ -4,8 +4,14 @@ import axios from 'axios'
 import ora, { Ora } from 'ora'
 import { bip32ToAddressNList } from '@shapeshiftoss/hdwallet-core'
 import { NativeHDWallet } from '@shapeshiftoss/hdwallet-native'
-import { error, info } from './logging.js'
+import { error, info, success } from './logging.js'
 import { BIP32_PATH, RFOX_DIR, SHAPESHIFT_MULTISIG_ADDRESS, THORNODE_URL } from './constants.js'
+import { Epoch } from '../types.js'
+import { read, write } from './file.js'
+
+const addressNList = bip32ToAddressNList(BIP32_PATH)
+
+type TxsByStakingAddress = Record<string, { signedTx: string; txId: string }>
 
 export class Wallet {
   private hdwallet: NativeHDWallet
@@ -23,15 +29,19 @@ export class Wallet {
       process.exit(1)
     }
 
+    const { address, path } = await wallet.getAddress()
+
+    info(`Hot wallet address: ${address} (${path})`)
+
     return wallet
   }
 
-  async initialize(): Promise<boolean | null> {
+  private async initialize(): Promise<boolean | null> {
     return this.hdwallet.initialize()
   }
 
-  async getAddress() {
-    const address = await this.hdwallet.thorchainGetAddress({ addressNList: bip32ToAddressNList(BIP32_PATH) })
+  private async getAddress() {
+    const address = await this.hdwallet.thorchainGetAddress({ addressNList })
 
     if (!address) {
       error('Failed to get address from hot wallet, exiting.')
@@ -41,7 +51,7 @@ export class Wallet {
     return { address, path: BIP32_PATH }
   }
 
-  async buildFundingTransaction(amount: string) {
+  private async buildFundingTransaction(amount: string, epoch: number) {
     const { address } = await this.getAddress()
 
     return {
@@ -59,8 +69,7 @@ export class Wallet {
             ],
           },
         ],
-        // TODO: update memo as related to epoch
-        memo: 'rFOX distribution funding (epoch test)',
+        memo: `Fund rFOX rewards distribution - Epoch #${epoch}`,
         timeout_height: '0',
         extension_options: [],
         non_critical_extension_options: [],
@@ -77,58 +86,173 @@ export class Wallet {
       signatures: [],
     }
   }
-}
 
-export const createWallet = async (mnemonic: string): Promise<Wallet> => {
-  const wallet = await Wallet.new(mnemonic)
+  async fund(epoch: Epoch) {
+    const { address } = await this.getAddress()
 
-  const { address, path } = await wallet.getAddress()
+    const distributions = Object.values(epoch.distributionsByStakingAddress)
 
-  info(`Hot wallet address: ${address} (${path})`)
+    const totalDistribution = distributions.reduce((prev, distribution) => {
+      return prev + BigInt(distribution.amount)
+    }, 0n)
 
-  return wallet
-}
+    const totalFees = BigInt(2000000) * BigInt(distributions.length)
 
-export const fund = async (wallet: Wallet, amount: string) => {
-  const { address } = await wallet.getAddress()
+    const totalAmount = (totalDistribution + totalFees).toString()
 
-  const isFunded = async (interval?: NodeJS.Timeout, spinner?: Ora, resolve?: () => void): Promise<boolean> => {
-    const { data } = await axios.get<{ balance: { denom: string; amount: string } }>(
-      `${THORNODE_URL}/lcd/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=rune`,
+    const isFunded = async (interval?: NodeJS.Timeout, spinner?: Ora, resolve?: () => void): Promise<boolean> => {
+      const { data } = await axios.get<{ balance: { denom: string; amount: string } }>(
+        `${THORNODE_URL}/lcd/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=rune`,
+      )
+
+      if (data.balance.amount !== totalAmount) {
+        return false
+      }
+
+      spinner?.succeed()
+
+      success('Hot wallet is funded and ready to distribute rewards.')
+
+      clearInterval(interval)
+      resolve && resolve()
+
+      return true
+    }
+
+    if (await isFunded()) return
+
+    const unsignedTx = await this.buildFundingTransaction(totalAmount, epoch.number)
+    const unsignedTxFile = path.join(RFOX_DIR, `unsignedTx_epoch-${epoch.number}.json`)
+
+    write(unsignedTxFile, JSON.stringify(unsignedTx, null, 2))
+    success(`Unsigned funding transaction created (${unsignedTxFile})`)
+    info(
+      `Follow the steps for signing and broadcasting the funding transaction as detailed here: https://github.com/shapeshift/rFOX/blob/main/scripts/hotWalletCli/MultiSig.md`,
     )
 
-    if (data.balance.amount !== amount) return false
+    const spinner = ora('Waiting for hot wallet to be funded...').start()
 
-    spinner?.succeed()
-
-    info('Hot wallet is funded and ready to distribute rewards.')
-
-    clearInterval(interval)
-    resolve && resolve()
-
-    return true
+    await (async () => {
+      return new Promise<void>(resolve => {
+        const interval = setInterval(() => {
+          isFunded(interval, spinner, resolve)
+        }, 30_000)
+      })
+    })()
   }
 
-  if (await isFunded()) return
+  private async signTransactions(epoch: Epoch): Promise<TxsByStakingAddress> {
+    const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
+    const txs = read(txsFile)
 
-  const unsignedTx = await wallet.buildFundingTransaction(amount)
-  const unsignedTxFile = path.join(RFOX_DIR, 'unsigned_tx.json')
+    const txsByStakingAddress = await (async () => {
+      if (txs) return JSON.parse(txs) as TxsByStakingAddress
 
-  // TODO: save file as related to epoch
-  fs.writeFileSync(unsignedTxFile, JSON.stringify(unsignedTx, null, 2), 'utf8')
+      const { address } = await this.getAddress()
 
-  info(`Unsigned funding transaction created (${unsignedTxFile})`)
-  info(
-    `Follow the steps for signing and broadcasting the funding transaction as detailed here: https://github.com/shapeshift/rFOX/blob/main/scripts/hotWalletCli/MultiSig.md`,
-  )
+      const { data } = await axios.get<{ account: { account_number: string; sequence: string } }>(
+        `${THORNODE_URL}/lcd/cosmos/auth/v1beta1/accounts/${address}`,
+      )
 
-  const spinner = ora('Waiting for hot wallet to be funded...').start()
+      let i = 0
+      const txsByStakingAddress: TxsByStakingAddress = {}
+      try {
+        for await (const [stakingAddress, distribution] of Object.entries(epoch.distributionsByStakingAddress)) {
+          const unsignedTx = {
+            account_number: data.account.account_number,
+            addressNList,
+            chain_id: 'thorchain-mainnet-v1',
+            sequence: String(Number(data.account.sequence) + i),
+            tx: {
+              msg: [
+                {
+                  type: 'thorchain/MsgSend',
+                  value: {
+                    amount: [{ amount: distribution.amount, denom: 'rune' }],
+                    from_address: address,
+                    to_address: distribution.rewardAddress,
+                  },
+                },
+              ],
+              fee: {
+                amount: [],
+                gas: '0',
+              },
+              memo: `rFOX reward (Staking Address: ${stakingAddress}) - Epoch #${epoch.number}`,
+              signatures: [],
+            },
+          }
 
-  await (async () => {
-    return new Promise<void>(resolve => {
-      const interval = setInterval(() => {
-        isFunded(interval, spinner, resolve)
-      }, 30_000)
-    })
-  })()
+          const signedTx = await this.hdwallet.thorchainSignTx(unsignedTx)
+
+          if (!signedTx?.serialized) break
+
+          txsByStakingAddress[stakingAddress] = {
+            signedTx: signedTx.serialized,
+            txId: '',
+          }
+
+          i++
+        }
+      } catch {}
+
+      return txsByStakingAddress
+    })()
+
+    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
+    const processedTxs = Object.values(txsByStakingAddress).filter(tx => !!tx.signedTx).length
+
+    if (processedTxs !== totalTxs) {
+      error(`${processedTxs}/${totalTxs} transactions signed, exiting.`)
+      process.exit(1)
+    }
+
+    write(txsFile, JSON.stringify(txsByStakingAddress, null, 2))
+    success(`${processedTxs}/${totalTxs} transactions signed.`)
+
+    return txsByStakingAddress
+  }
+
+  async broadcastTransactions(epoch: Epoch, txsByStakingAddress: TxsByStakingAddress): Promise<Epoch> {
+    try {
+      for await (const [stakingAddress, { signedTx, txId }] of Object.entries(txsByStakingAddress)) {
+        if (txId) {
+          epoch.distributionsByStakingAddress[stakingAddress].txId = txId
+          continue
+        }
+
+        const { data } = await axios.post<{ result: { hash: string } }>(`${THORNODE_URL}/rpc`, {
+          jsonrpc: '2.0',
+          id: stakingAddress,
+          method: 'broadcast_tx_sync',
+          params: { tx: signedTx },
+        })
+
+        if (!data.result.hash) continue
+
+        txsByStakingAddress[stakingAddress].txId = data.result.hash
+        epoch.distributionsByStakingAddress[stakingAddress].txId = data.result.hash
+      }
+    } catch {}
+
+    const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
+    write(txsFile, JSON.stringify(txsByStakingAddress, null, 2))
+
+    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
+    const processedTxs = Object.values(txsByStakingAddress).filter(tx => !!tx.txId).length
+
+    if (processedTxs !== totalTxs) {
+      error(`${processedTxs}/${totalTxs} transactions broadcasted, exiting.`)
+      process.exit(1)
+    }
+
+    success(`${processedTxs}/${totalTxs} transactions broadcasted.`)
+
+    return epoch
+  }
+
+  async distribute(epoch: Epoch): Promise<Epoch> {
+    const txsByStakingAddress = await this.signTransactions(epoch)
+    return this.broadcastTransactions(epoch, txsByStakingAddress)
+  }
 }

@@ -38,15 +38,15 @@ go build --tags cgo,ledger
 
 - Person 1 signs:
   ```bash
-  ./thornode tx sign --from {person1} --multisig multisig {unsigned_tx.json} --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --from ledger --ledger --sign-mode amino-json > tx_signed_{person1}.json
+  ./thornode tx sign --from {person1} --multisig multisig {unsignedTx_epoch-N.json} --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --from ledger --ledger --sign-mode amino-json > signedTx_{person1}.json
   ```
 - Person 2 signs:
   ```bash
-  ./thornode tx sign --from {person2} --multisig multisig {unsigned_tx.json} --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --from ledger --ledger --sign-mode amino-json > tx_signed_{person2}.json
+  ./thornode tx sign --from {person2} --multisig multisig {unsignedTx_epoch-N.json} --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --from ledger --ledger --sign-mode amino-json > signedTx_{person2}.json
   ```
 - Multisign:
   ```bash
-  ./thornode tx multisign {unsigned_tx.json} multisig tx_signed_{person1}.json tx_signed_{person2}.json --from multisig --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc > tx_signed_multisig.json
+  ./thornode tx multisign {unsignedTx_epoch-N.json} multisig signedTx_{person1}.json signedTx_{person2}.json --from multisig --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc > signedTx_multisig.json
   ```
 
 ## Send Transaction
@@ -54,13 +54,13 @@ go build --tags cgo,ledger
 - Simulate transaction:
 
   ```bash
-  ./thornode tx broadcast tx_signed_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto --dry-run > simulated_tx.json
+  ./thornode tx broadcast signedTx_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto --dry-run > simulatedTx.json
   ```
 
-  - Validate contents of `simulated_tx.json` for accuracy before broadcasting
+  - Validate contents of `simulatedTx.json` for accuracy before broadcasting
 
 - Broadcast transaction:
   ```bash
-  ./thornode tx broadcast tx_signed_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
+  ./thornode tx broadcast signedTx_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
   ```
   - Copy the `txhash` value from `tx.json` to supply to the cli in order to continue

@@ -1,9 +1,9 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import crypto from 'node:crypto'
 import * as prompts from '@inquirer/prompts'
 import { generateMnemonic, validateMnemonic } from 'bip39'
-import { error } from './logging.js'
+import { error, info, success, warn } from './logging.js'
+import { read, write } from './file.js'
+import path from 'node:path'
 import { RFOX_DIR } from './constants.js'
 
 const recoveryChoices = [
@@ -46,10 +46,7 @@ const decryptMnemonic = (encryptedMnemonic: string, password: string): string | 
   }
 }
 
-export const create = async (): Promise<{
-  mnemonic: string
-  keystoreFile: string
-}> => {
+export const create = async (epoch: number): Promise<string> => {
   const password = await prompts.password({
     message: 'Enter a password for encrypting keystore file: ',
     mask: true,
@@ -67,25 +64,23 @@ export const create = async (): Promise<{
 
   const mnemonic = generateMnemonic()
   const encryptedMnemonic = encryptMnemonic(mnemonic, password)
+  const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch}.txt`)
 
-  // TODO: save file as related to epoch
-  const keystoreFile = path.join(RFOX_DIR, 'keystore.txt')
+  write(keystoreFile, encryptedMnemonic)
+  success(`Encrypted keystore created (${keystoreFile})`)
+  info('Please back up your mnemonic in another secure way in case keystore file recovery fails!!!')
+  info(`Mnemonic: ${mnemonic}`)
+  warn('DO NOT INTERACT WITH THIS WALLET FOR ANY REASON OUTSIDE OF THIS SCRIPT!!!')
 
-  fs.writeFileSync(keystoreFile, encryptedMnemonic, 'utf8')
-
-  return { mnemonic, keystoreFile }
+  return mnemonic
 }
 
 export const recoverKeystore = async (keystoreFile: string, attempt = 0): Promise<string> => {
-  const encryptedMnemonic = (() => {
-    try {
-      return fs.readFileSync(keystoreFile, 'utf8')
-    } catch (err) {
-      error('No keystore file found.')
-    }
-  })()
+  const encryptedMnemonic = read(keystoreFile)
 
   if (!encryptedMnemonic) {
+    error('No keystore file found.')
+
     return recoveryChoice(
       attempt,
       recoveryChoices.filter(choice => choice.value !== 'password'),

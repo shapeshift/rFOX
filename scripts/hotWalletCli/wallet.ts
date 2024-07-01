@@ -4,9 +4,13 @@ import axios from 'axios'
 import path from 'node:path'
 import ora, { Ora } from 'ora'
 import { Epoch } from '../types'
-import { BIP32_PATH, RFOX_DIR, SHAPESHIFT_MULTISIG_ADDRESS, THORNODE_URL } from './constants'
+import { RFOX_DIR } from './constants'
 import { read, write } from './file'
 import { error, info, success } from './logging'
+
+const BIP32_PATH = `m/44'/931'/0'/0/0`
+const SHAPESHIFT_MULTISIG_ADDRESS = 'thor1xmaggkcln5m5fnha2780xrdrulmplvfrz6wj3l'
+const THORNODE_URL = 'https://daemon.thorchain.shapeshift.com'
 
 const addressNList = bip32ToAddressNList(BIP32_PATH)
 

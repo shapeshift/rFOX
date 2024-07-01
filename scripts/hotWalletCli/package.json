@@ -14,14 +14,14 @@
   "dependencies": {
     "@inquirer/core": "^8.2.2",
     "@inquirer/prompts": "^5.0.5",
+    "@pinata/sdk": "^2.1.0",
     "@shapeshiftoss/hdwallet-core": "^1.54.0",
     "@shapeshiftoss/hdwallet-native": "^1.54.0",
     "axios": "^1.7.2",
     "bip39": "^3.1.0",
     "chalk": "^5.3.0",
-    "crypto": "^1.0.1",
+    "dotenv": "^16.4.5",
     "hash-wasm": "^4.11.0",
-    "ipfs-http-client": "^60.0.1",
     "log-symbols": "^6.0.0",
     "ora": "^8.0.1"
   },

@@ -1,13 +1,13 @@
+import * as prompts from '@inquirer/prompts'
 import fs from 'node:fs'
 import path from 'node:path'
-import * as prompts from '@inquirer/prompts'
-import { create, recoverKeystore } from './mnemonic.js'
-import { error, warn } from './logging.js'
-import { Wallet } from './wallet.js'
-import { RFOX_DIR } from './constants.js'
-import { Client } from './ipfs.js'
-import { isEpochDistributionStarted } from './file.js'
-import { Epoch } from '../types.js'
+import { Epoch } from '../types'
+import { RFOX_DIR } from './constants'
+import { isEpochDistributionStarted } from './file'
+import { Client } from './ipfs'
+import { error, warn } from './logging'
+import { create, recoverKeystore } from './mnemonic'
+import { Wallet } from './wallet'
 
 const run = async () => {
   const ipfs = await Client.new()

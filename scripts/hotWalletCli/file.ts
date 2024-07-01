@@ -1,6 +1,6 @@
 import fs from 'node:fs'
-import { error, info } from './logging'
 import { RFOX_DIR } from './constants'
+import { error, info } from './logging'
 
 const deleteIfExists = (file: string) => {
   try {

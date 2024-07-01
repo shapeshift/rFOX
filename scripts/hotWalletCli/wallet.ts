@@ -1,13 +1,12 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import axios from 'axios'
-import ora, { Ora } from 'ora'
 import { bip32ToAddressNList } from '@shapeshiftoss/hdwallet-core'
 import { NativeHDWallet } from '@shapeshiftoss/hdwallet-native'
-import { error, info, success } from './logging.js'
-import { BIP32_PATH, RFOX_DIR, SHAPESHIFT_MULTISIG_ADDRESS, THORNODE_URL } from './constants.js'
-import { Epoch } from '../types.js'
-import { read, write } from './file.js'
+import axios from 'axios'
+import path from 'node:path'
+import ora, { Ora } from 'ora'
+import { Epoch } from '../types'
+import { BIP32_PATH, RFOX_DIR, SHAPESHIFT_MULTISIG_ADDRESS, THORNODE_URL } from './constants'
+import { read, write } from './file'
+import { error, info, success } from './logging'
 
 const addressNList = bip32ToAddressNList(BIP32_PATH)
 

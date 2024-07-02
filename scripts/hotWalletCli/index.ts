@@ -5,13 +5,13 @@ import path from 'node:path'
 import { Epoch } from '../types'
 import { RFOX_DIR } from './constants'
 import { isEpochDistributionStarted } from './file'
-import { Client } from './ipfs'
-import { error, warn } from './logging'
+import { IPFS } from './ipfs'
+import { error, info, success, warn } from './logging'
 import { create, recoverKeystore } from './mnemonic'
 import { Wallet } from './wallet'
 
 const run = async () => {
-  const ipfs = await Client.new()
+  const ipfs = await IPFS.new()
 
   const epoch = await ipfs.getEpoch()
 
@@ -21,6 +21,11 @@ const run = async () => {
     })
 
     if (cont) return recover(epoch)
+
+    warn(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
+    warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
+
+    process.exit(0)
   }
 
   const mnemonic = await create(epoch.number)
@@ -35,22 +40,35 @@ const run = async () => {
   }
 
   const wallet = await Wallet.new(mnemonic)
-  await wallet.fund(epoch)
-  await wallet.distribute(epoch)
+
+  await processEpoch(epoch, wallet, ipfs)
 }
 
 const recover = async (epoch?: Epoch) => {
-  if (!epoch) {
-    const ipfs = await Client.new()
-    epoch = await ipfs.getEpoch()
-  }
+  const ipfs = await IPFS.new()
+
+  if (!epoch) epoch = await ipfs.getEpoch()
 
   const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch.number}.txt`)
   const mnemonic = await recoverKeystore(keystoreFile)
 
   const wallet = await Wallet.new(mnemonic)
+
+  await processEpoch(epoch, wallet, ipfs)
+}
+
+const processEpoch = async (epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
   await wallet.fund(epoch)
-  await wallet.distribute(epoch)
+  const processedEpoch = await wallet.distribute(epoch)
+
+  const processedEpochHash = await ipfs.addEpoch(processedEpoch)
+  await ipfs.updateMetadata({ number: processedEpoch.number, hash: processedEpochHash })
+
+  success(`rFOX reward distribution for Epoch #${processedEpoch.number} has been completed!`)
+
+  info(
+    'Please update the rFOX Wiki (https://github.com/shapeshift/rFOX/wiki/rFOX-Metadata) and notify the DAO accordingly. Thanks!',
+  )
 }
 
 const shutdown = () => {

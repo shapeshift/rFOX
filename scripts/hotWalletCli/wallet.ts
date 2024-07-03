@@ -1,6 +1,6 @@
 import { bip32ToAddressNList } from '@shapeshiftoss/hdwallet-core'
 import { NativeHDWallet } from '@shapeshiftoss/hdwallet-native'
-import axios from 'axios'
+import axios, { isAxiosError } from 'axios'
 import path from 'node:path'
 import ora, { Ora } from 'ora'
 import { Epoch } from '../types'
@@ -104,22 +104,32 @@ export class Wallet {
     const totalAmount = (totalDistribution + totalFees).toString()
 
     const isFunded = async (interval?: NodeJS.Timeout, spinner?: Ora, resolve?: () => void): Promise<boolean> => {
-      const { data } = await axios.get<{ balance: { denom: string; amount: string } }>(
-        `${THORNODE_URL}/lcd/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=rune`,
-      )
+      try {
+        const { data } = await axios.get<{ result: { total_count: string } }>(
+          `${THORNODE_URL}/rpc/tx_search?query="transfer.recipient='${address}' AND transfer.amount='${totalAmount}rune'"`,
+        )
 
-      if (data.balance.amount !== totalAmount) {
-        return false
+        if (data.result.total_count !== '1') {
+          return false
+        }
+
+        spinner?.succeed('Hot wallet is funded and ready to distribute rewards.')
+
+        clearInterval(interval)
+        resolve && resolve()
+
+        return true
+      } catch (err) {
+        spinner?.fail()
+
+        if (isAxiosError(err)) {
+          error(err.request?.data?.message || err.response?.data?.message || err.message)
+        } else {
+          error('Failed to verify if hot wallet is funded, exiting.')
+        }
+
+        process.exit(1)
       }
-
-      spinner?.succeed()
-
-      success('Hot wallet is funded and ready to distribute rewards.')
-
-      clearInterval(interval)
-      resolve && resolve()
-
-      return true
     }
 
     if (await isFunded()) return
@@ -129,6 +139,7 @@ export class Wallet {
 
     write(unsignedTxFile, JSON.stringify(unsignedTx, null, 2))
     success(`Unsigned funding transaction created (${unsignedTxFile})`)
+
     info(
       `Follow the steps for signing and broadcasting the funding transaction as detailed here: https://github.com/shapeshift/rFOX/blob/main/scripts/hotWalletCli/MultiSig.md`,
     )
@@ -148,24 +159,42 @@ export class Wallet {
     const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
     const txs = read(txsFile)
 
+    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
+    const spinner = ora(`Signing ${totalTxs} transactions...`).start()
+
     const txsByStakingAddress = await (async () => {
       if (txs) return JSON.parse(txs) as TxsByStakingAddress
 
       const { address } = await this.getAddress()
 
-      const { data } = await axios.get<{ account: { account_number: string; sequence: string } }>(
-        `${THORNODE_URL}/lcd/cosmos/auth/v1beta1/accounts/${address}`,
-      )
+      const account = await (async () => {
+        try {
+          const { data } = await axios.get<{ account: { account_number: string; sequence: string } }>(
+            `${THORNODE_URL}/lcd/cosmos/auth/v1beta1/accounts/${address}`,
+          )
+          return data.account
+        } catch (err) {
+          spinner.fail()
+
+          if (isAxiosError(err)) {
+            error(err.request?.data?.message || err.response?.data?.message || err.message)
+          } else {
+            error('Failed to get account details, exiting.')
+          }
+
+          process.exit(1)
+        }
+      })()
 
       let i = 0
       const txsByStakingAddress: TxsByStakingAddress = {}
       try {
         for await (const [stakingAddress, distribution] of Object.entries(epoch.distributionsByStakingAddress)) {
           const unsignedTx = {
-            account_number: data.account.account_number,
+            account_number: account.account_number,
             addressNList,
             chain_id: 'thorchain-mainnet-v1',
-            sequence: String(Number(data.account.sequence) + i),
+            sequence: String(Number(account.sequence) + i),
             tx: {
               msg: [
                 {
@@ -202,21 +231,23 @@ export class Wallet {
       return txsByStakingAddress
     })()
 
-    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
     const processedTxs = Object.values(txsByStakingAddress).filter(tx => !!tx.signedTx).length
 
     if (processedTxs !== totalTxs) {
-      error(`${processedTxs}/${totalTxs} transactions signed, exiting.`)
+      spinner.fail(`${processedTxs}/${totalTxs} transactions signed, exiting.`)
       process.exit(1)
     }
 
     write(txsFile, JSON.stringify(txsByStakingAddress, null, 2))
-    success(`${processedTxs}/${totalTxs} transactions signed.`)
+    spinner.succeed(`${processedTxs}/${totalTxs} transactions signed.`)
 
     return txsByStakingAddress
   }
 
   async broadcastTransactions(epoch: Epoch, txsByStakingAddress: TxsByStakingAddress): Promise<Epoch> {
+    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
+    const spinner = ora(`Broadcasting ${totalTxs} transactions...`).start()
+
     try {
       for await (const [stakingAddress, { signedTx, txId }] of Object.entries(txsByStakingAddress)) {
         if (txId) {
@@ -224,32 +255,33 @@ export class Wallet {
           continue
         }
 
-        const { data } = await axios.post<{ result: { hash: string } }>(`${THORNODE_URL}/rpc`, {
+        const { data } = await axios.post<{ result: { code: number; hash: string } }>(`${THORNODE_URL}/rpc`, {
           jsonrpc: '2.0',
           id: stakingAddress,
           method: 'broadcast_tx_sync',
           params: { tx: signedTx },
         })
 
-        if (!data.result.hash) continue
+        if (!data.result.hash || data.result.code !== 0) continue
 
         txsByStakingAddress[stakingAddress].txId = data.result.hash
         epoch.distributionsByStakingAddress[stakingAddress].txId = data.result.hash
+
+        await new Promise(resolve => setTimeout(resolve, 1_000))
       }
     } catch {}
 
     const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
     write(txsFile, JSON.stringify(txsByStakingAddress, null, 2))
 
-    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
     const processedTxs = Object.values(txsByStakingAddress).filter(tx => !!tx.txId).length
 
     if (processedTxs !== totalTxs) {
-      error(`${processedTxs}/${totalTxs} transactions broadcasted, exiting.`)
+      spinner.fail(`${processedTxs}/${totalTxs} transactions broadcasted, exiting.`)
       process.exit(1)
     }
 
-    success(`${processedTxs}/${totalTxs} transactions broadcasted.`)
+    spinner.succeed(`${processedTxs}/${totalTxs} transactions broadcasted.`)
 
     return epoch
   }

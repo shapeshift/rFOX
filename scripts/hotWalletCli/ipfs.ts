@@ -2,7 +2,7 @@ import * as prompts from '@inquirer/prompts'
 import PinataClient from '@pinata/sdk'
 import axios from 'axios'
 import { Epoch, RFOXMetadata, RewardDistribution } from '../types'
-import { error, info, success, warn } from './logging'
+import { error, info } from './logging'
 
 const PINATA_API_KEY = process.env['PINATA_API_KEY']
 const PINATA_SECRET_API_KEY = process.env['PINATA_SECRET_API_KEY']
@@ -87,14 +87,14 @@ export class IPFS {
       pinataMetadata: { name: `rFoxEpoch${epoch.number}.json` },
     })
 
-    success(`Epoch added (IPFS hash: ${IpfsHash})`)
+    info(`rFOX Epoch #${epoch.number} IPFS hash: ${IpfsHash}`)
 
     return IpfsHash
   }
 
   async getEpoch(): Promise<Epoch> {
     const hash = await prompts.input({
-      message: 'What is the IPFS hash for the rFOX distribution epoch you wish to process? ',
+      message: 'What is the IPFS hash for the rFOX distribution you wish to process? ',
     })
 
     try {
@@ -139,7 +139,7 @@ export class IPFS {
         pinataMetadata: { name: 'rFoxMetadata.json' },
       })
 
-      success(`Metadata updated (IPFS hash: ${IpfsHash})`)
+      info(`rFOX Metadata IPFS hash: ${IpfsHash}`)
 
       return IpfsHash
     }

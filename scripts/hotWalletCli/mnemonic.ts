@@ -46,7 +46,12 @@ const decryptMnemonic = (encryptedMnemonic: string, password: string): string | 
   }
 }
 
-export const create = async (epoch: number): Promise<string> => {
+export const create = async (epoch: number, attempt = 0): Promise<string> => {
+  if (attempt >= 3) {
+    error('Failed to create hot wallet, exiting.')
+    process.exit(1)
+  }
+
   const password = await prompts.password({
     message: 'Enter a password for encrypting keystore file: ',
     mask: true,
@@ -59,7 +64,7 @@ export const create = async (epoch: number): Promise<string> => {
 
   if (password !== password2) {
     error(`Your passwords don't match.`)
-    process.exit(1)
+    return create(epoch, ++attempt)
   }
 
   const mnemonic = generateMnemonic()

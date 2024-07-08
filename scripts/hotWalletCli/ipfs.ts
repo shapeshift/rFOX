@@ -1,6 +1,7 @@
 import * as prompts from '@inquirer/prompts'
 import PinataClient from '@pinata/sdk'
 import axios from 'axios'
+import BigNumber from 'bignumber.js'
 import { Epoch, RFOXMetadata, RewardDistribution } from '../types'
 import { error, info } from './logging'
 
@@ -76,25 +77,30 @@ export class IPFS {
       const client = new PinataClient({ pinataApiKey: PINATA_API_KEY, pinataSecretApiKey: PINATA_SECRET_API_KEY })
       await client.testAuthentication()
       return new IPFS(client)
-    } catch (err) {
+    } catch {
       error('Failed to connect to IPFS, exiting.')
       process.exit(1)
     }
   }
 
   async addEpoch(epoch: Epoch): Promise<string> {
-    const { IpfsHash } = await this.client.pinJSONToIPFS(epoch, {
-      pinataMetadata: { name: `rFoxEpoch${epoch.number}.json` },
-    })
+    try {
+      const { IpfsHash } = await this.client.pinJSONToIPFS(epoch, {
+        pinataMetadata: { name: `rFoxEpoch${epoch.number}.json` },
+      })
 
-    info(`rFOX Epoch #${epoch.number} IPFS hash: ${IpfsHash}`)
+      info(`rFOX Epoch #${epoch.number} IPFS hash: ${IpfsHash}`)
 
-    return IpfsHash
+      return IpfsHash
+    } catch {
+      error('Failed to add epoch to IPFS, exiting.')
+      process.exit(1)
+    }
   }
 
   async getEpoch(): Promise<Epoch> {
     const hash = await prompts.input({
-      message: 'What is the IPFS hash for the rFOX distribution you wish to process? ',
+      message: 'What is the IPFS hash for the rFOX reward distribution you want to process? ',
     })
 
     try {
@@ -105,7 +111,18 @@ export class IPFS {
       })
 
       if (isEpoch(data)) {
-        info(`Processing rFOX distribution for Epoch #${data.number}.`)
+        const totalAddresses = Object.keys(data.distributionsByStakingAddress).length
+        const totalRewards = Object.values(data.distributionsByStakingAddress)
+          .reduce((prev, distribution) => {
+            return prev.plus(distribution.amount)
+          }, BigNumber(0))
+          .div(100000000)
+          .toFixed()
+
+        info(
+          `Processing rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} RUNE\n    - Total Addresses: ${totalAddresses}`,
+        )
+
         return data
       } else {
         error(`The contents of IPFS hash (${hash}) are not valid, exiting.`)
@@ -127,7 +144,7 @@ export class IPFS {
         info(`The metadata already contains an IPFS hash for this epoch: ${hash}`)
 
         const confirmed = await prompts.confirm({
-          message: `Do you wish to update the metadata with the new IPFS hash: ${epoch.hash}?`,
+          message: `Do you want to update the metadata with the new IPFS hash: ${epoch.hash}?`,
         })
 
         if (!confirmed) return
@@ -151,7 +168,7 @@ export class IPFS {
 
   async getMetadata(): Promise<RFOXMetadata> {
     const hash = await prompts.input({
-      message: 'What is the IPFS hash for the rFOX metadata you wish to update? ',
+      message: 'What is the IPFS hash for the rFOX metadata you want to update? ',
     })
 
     try {

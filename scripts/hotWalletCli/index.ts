@@ -22,7 +22,7 @@ const run = async () => {
 
     if (cont) return recover(epoch)
 
-    warn(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
+    info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
     warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
 
     process.exit(0)

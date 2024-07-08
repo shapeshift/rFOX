@@ -1,18 +1,34 @@
+import 'dotenv/config'
+import * as prompts from '@inquirer/prompts'
 import fs from 'node:fs'
 import path from 'node:path'
-import * as prompts from '@inquirer/prompts'
-import { create, recoverKeystore } from './mnemonic.js'
-import { info, error, warn } from './logging.js'
-import { createWallet, fund } from './wallet.js'
-import { RFOX_DIR } from './constants.js'
+import { Epoch } from '../types'
+import { RFOX_DIR } from './constants'
+import { isEpochDistributionStarted } from './file'
+import { IPFS } from './ipfs'
+import { error, info, success, warn } from './logging'
+import { create, recoverKeystore } from './mnemonic'
+import { Wallet } from './wallet'
 
 const run = async () => {
-  const { mnemonic, keystoreFile: keystore } = await create()
+  const ipfs = await IPFS.new()
 
-  info(`Encrypted keystore file created (${keystore})`)
-  info('Please back up your mnemonic in another secure way in case keystore file recovery fails!!!')
-  info(`Mnemonic: ${mnemonic}`)
-  warn('DO NOT INTERACT WITH THIS WALLET FOR ANY REASON OUTSIDE OF THIS SCRIPT!!!')
+  const epoch = await ipfs.getEpoch()
+
+  if (isEpochDistributionStarted(epoch.number)) {
+    const cont = await prompts.confirm({
+      message: 'It looks like you have already started a distribution for this epoch. Do you want to continue? ',
+    })
+
+    if (cont) return recover(epoch)
+
+    info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
+    warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
+
+    process.exit(0)
+  }
+
+  const mnemonic = await create(epoch.number)
 
   const confirmed = await prompts.confirm({
     message: 'Have you securely backed up your mnemonic? ',
@@ -23,23 +39,36 @@ const run = async () => {
     process.exit(1)
   }
 
-  const wallet = await createWallet(mnemonic)
+  const wallet = await Wallet.new(mnemonic)
 
-  // TODO: get total amount from distribution file (total distribution + fees to pay for all transactions)
-  const amount = '1'
-
-  await fund(wallet, amount)
+  await processEpoch(epoch, wallet, ipfs)
 }
 
-const recover = async () => {
-  const keystore = path.join(RFOX_DIR, 'keystore.txt')
-  const mnemonic = await recoverKeystore(keystore)
-  const wallet = await createWallet(mnemonic)
+const recover = async (epoch?: Epoch) => {
+  const ipfs = await IPFS.new()
 
-  // TODO: get total amount from distribution file (total distribution + fees to pay for all transactions)
-  const amount = '1'
+  if (!epoch) epoch = await ipfs.getEpoch()
 
-  await fund(wallet, amount)
+  const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch.number}.txt`)
+  const mnemonic = await recoverKeystore(keystoreFile)
+
+  const wallet = await Wallet.new(mnemonic)
+
+  await processEpoch(epoch, wallet, ipfs)
+}
+
+const processEpoch = async (epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
+  await wallet.fund(epoch)
+  const processedEpoch = await wallet.distribute(epoch)
+
+  const processedEpochHash = await ipfs.addEpoch(processedEpoch)
+  await ipfs.updateMetadata({ number: processedEpoch.number, hash: processedEpochHash })
+
+  success(`rFOX reward distribution for Epoch #${processedEpoch.number} has been completed!`)
+
+  info(
+    'Please update the rFOX Wiki (https://github.com/shapeshift/rFOX/wiki/rFOX-Metadata) and notify the DAO accordingly. Thanks!',
+  )
 }
 
 const shutdown = () => {
@@ -76,9 +105,9 @@ const main = async () => {
 
   switch (choice) {
     case 'run':
-      return await run()
+      return run()
     case 'recover':
-      return await recover()
+      return recover()
     default:
       error(`Invalid choice: ${choice}, exiting.`)
       process.exit(1)

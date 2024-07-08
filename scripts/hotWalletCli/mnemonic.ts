@@ -1,10 +1,10 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import crypto from 'node:crypto'
 import * as prompts from '@inquirer/prompts'
 import { generateMnemonic, validateMnemonic } from 'bip39'
-import { error } from './logging.js'
-import { RFOX_DIR } from './constants.js'
+import crypto from 'node:crypto'
+import path from 'node:path'
+import { RFOX_DIR } from './constants'
+import { read, write } from './file'
+import { error, info, success, warn } from './logging'
 
 const recoveryChoices = [
   {
@@ -46,10 +46,12 @@ const decryptMnemonic = (encryptedMnemonic: string, password: string): string | 
   }
 }
 
-export const create = async (): Promise<{
-  mnemonic: string
-  keystoreFile: string
-}> => {
+export const create = async (epoch: number, attempt = 0): Promise<string> => {
+  if (attempt >= 3) {
+    error('Failed to create hot wallet, exiting.')
+    process.exit(1)
+  }
+
   const password = await prompts.password({
     message: 'Enter a password for encrypting keystore file: ',
     mask: true,
@@ -62,30 +64,28 @@ export const create = async (): Promise<{
 
   if (password !== password2) {
     error(`Your passwords don't match.`)
-    process.exit(1)
+    return create(epoch, ++attempt)
   }
 
   const mnemonic = generateMnemonic()
   const encryptedMnemonic = encryptMnemonic(mnemonic, password)
+  const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch}.txt`)
 
-  // TODO: save file as related to epoch
-  const keystoreFile = path.join(RFOX_DIR, 'keystore.txt')
+  write(keystoreFile, encryptedMnemonic)
+  success(`Encrypted keystore created (${keystoreFile})`)
+  info('Please back up your mnemonic in another secure way in case keystore file recovery fails!!!')
+  info(`Mnemonic: ${mnemonic}`)
+  warn('DO NOT INTERACT WITH THIS WALLET FOR ANY REASON OUTSIDE OF THIS SCRIPT!!!')
 
-  fs.writeFileSync(keystoreFile, encryptedMnemonic, 'utf8')
-
-  return { mnemonic, keystoreFile }
+  return mnemonic
 }
 
 export const recoverKeystore = async (keystoreFile: string, attempt = 0): Promise<string> => {
-  const encryptedMnemonic = (() => {
-    try {
-      return fs.readFileSync(keystoreFile, 'utf8')
-    } catch (err) {
-      error('No keystore file found.')
-    }
-  })()
+  const encryptedMnemonic = read(keystoreFile)
 
   if (!encryptedMnemonic) {
+    error('No keystore file found.')
+
     return recoveryChoice(
       attempt,
       recoveryChoices.filter(choice => choice.value !== 'password'),

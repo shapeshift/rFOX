@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import { RFOX_DIR } from './constants'
-import { error, info } from './logging'
+import { error, info, warn } from './logging'
 
 const deleteIfExists = (file: string) => {
   try {
@@ -15,6 +15,7 @@ export const write = (file: string, data: string) => {
     fs.writeFileSync(file, data, { mode: 0o400, encoding: 'utf8' })
   } catch {
     error(`Failed to write file ${file}, exiting.`)
+    warn('Manually save the contents at the specified file location if possible, or a temporary file for recovery!!!')
     info(data)
     process.exit(1)
   }

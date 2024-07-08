@@ -14,5 +14,5 @@ export const error = (text: string) => {
 }
 
 export const success = (text: string) => {
-  console.log(symbols.success, chalk.green(text))
+  console.log(symbols.success, chalk.white(text))
 }

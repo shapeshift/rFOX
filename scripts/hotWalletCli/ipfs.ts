@@ -1,82 +1,190 @@
 import * as prompts from '@inquirer/prompts'
-import { create, IPFSHTTPClient } from 'ipfs-http-client'
-import { Epoch, RewardDistribution } from '../types'
+import PinataClient from '@pinata/sdk'
+import axios from 'axios'
+import BigNumber from 'bignumber.js'
+import { Epoch, RFOXMetadata, RewardDistribution } from '../types'
 import { error, info } from './logging'
 
-export function isRewardDistribution(obj: any): obj is RewardDistribution {
-  return (
-    typeof obj.amount === 'string' &&
-    typeof obj.rewardUnits === 'string' &&
-    typeof obj.txId === 'string' &&
-    typeof obj.rewardAddress === 'string'
-  )
+const PINATA_API_KEY = process.env['PINATA_API_KEY']
+const PINATA_SECRET_API_KEY = process.env['PINATA_SECRET_API_KEY']
+const PINATA_GATEWAY_URL = process.env['PINATA_GATEWAY_URL']
+const PINATA_GATEWAY_API_KEY = process.env['PINATA_GATEWAY_API_KEY']
+
+if (!PINATA_API_KEY) {
+  error('PINATA_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
 }
 
-export function isEpoch(obj: any): obj is Epoch {
-  if (typeof obj !== 'object' || obj === null) return false
-
-  return (
-    typeof obj.number === 'number' &&
-    typeof obj.startTimestamp === 'number' &&
-    typeof obj.endTimestamp === 'number' &&
-    typeof obj.startBlock === 'number' &&
-    typeof obj.endBlock === 'number' &&
-    typeof obj.totalRevenue === 'string' &&
-    typeof obj.totalRewardUnits === 'string' &&
-    typeof obj.distributionRate === 'number' &&
-    typeof obj.burnRate === 'number' &&
-    typeof obj.distributionsByStakingAddress === 'object' &&
-    obj.distributionsByStakingAddress !== null &&
-    Object.values(obj.distributionsByStakingAddress).every(isRewardDistribution)
-  )
+if (!PINATA_SECRET_API_KEY) {
+  error('PINATA_SECRET_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
 }
 
-export class Client {
-  private ipfs: IPFSHTTPClient
+if (!PINATA_GATEWAY_URL) {
+  error('PINATA_GATEWAY_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
 
-  constructor(ipfs: IPFSHTTPClient) {
-    this.ipfs = ipfs
+if (!PINATA_GATEWAY_API_KEY) {
+  error('PINATA_GATEWAY_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
+
+const isMetadata = (obj: any): obj is RFOXMetadata =>
+  obj &&
+  typeof obj === 'object' &&
+  typeof obj.epoch === 'number' &&
+  typeof obj.epochStartTimestamp === 'number' &&
+  typeof obj.epochEndTimestamp === 'number' &&
+  typeof obj.distributionRate === 'number' &&
+  typeof obj.burnRate === 'number' &&
+  typeof obj.treasuryAddress === 'string' &&
+  typeof obj.ipfsHashByEpoch === 'object' &&
+  Object.values(obj.ipfsHashByEpoch ?? {}).every(value => typeof value === 'string')
+
+const isEpoch = (obj: any): obj is Epoch =>
+  obj &&
+  typeof obj === 'object' &&
+  typeof obj.number === 'number' &&
+  typeof obj.startTimestamp === 'number' &&
+  typeof obj.endTimestamp === 'number' &&
+  typeof obj.startBlock === 'number' &&
+  typeof obj.endBlock === 'number' &&
+  typeof obj.totalRevenue === 'string' &&
+  typeof obj.totalRewardUnits === 'string' &&
+  typeof obj.distributionRate === 'number' &&
+  typeof obj.burnRate === 'number' &&
+  typeof obj.distributionsByStakingAddress === 'object' &&
+  Object.values(obj.distributionsByStakingAddress ?? {}).every(isRewardDistribution)
+
+const isRewardDistribution = (obj: any): obj is RewardDistribution =>
+  obj &&
+  typeof obj === 'object' &&
+  typeof obj.amount === 'string' &&
+  typeof obj.rewardUnits === 'string' &&
+  typeof obj.txId === 'string' &&
+  typeof obj.rewardAddress === 'string'
+
+export class IPFS {
+  private client: PinataClient
+
+  constructor(client: PinataClient) {
+    this.client = client
   }
 
-  static async new(): Promise<Client> {
+  static async new(): Promise<IPFS> {
     try {
-      const ipfs = create()
-      return new Client(ipfs)
-    } catch (err) {
+      const client = new PinataClient({ pinataApiKey: PINATA_API_KEY, pinataSecretApiKey: PINATA_SECRET_API_KEY })
+      await client.testAuthentication()
+      return new IPFS(client)
+    } catch {
       error('Failed to connect to IPFS, exiting.')
       process.exit(1)
     }
   }
 
   async addEpoch(epoch: Epoch): Promise<string> {
-    const buffer = Buffer.from(JSON.stringify(epoch))
-    const { cid } = await this.ipfs.add(buffer)
+    try {
+      const { IpfsHash } = await this.client.pinJSONToIPFS(epoch, {
+        pinataMetadata: { name: `rFoxEpoch${epoch.number}.json` },
+      })
 
-    return cid.toString()
-  }
+      info(`rFOX Epoch #${epoch.number} IPFS hash: ${IpfsHash}`)
 
-  async getEpoch(): Promise<Epoch> {
-    const cid = await prompts.input({
-      message: 'What is the IPFS CID for the rFOX distribution epoch you wish to process? ',
-    })
-
-    const decoder = new TextDecoder()
-
-    let content = ''
-    for await (const chunk of this.ipfs.cat(cid)) {
-      content += decoder.decode(chunk, { stream: true })
-    }
-
-    const epoch = JSON.parse(content)
-
-    if (isEpoch(epoch)) {
-      info(`Processing rFOX distribution for Epoch #${epoch.number}.`)
-      return epoch
-    } else {
-      error(`The contents of IPFS CID (${cid}) are not valid, exiting.`)
+      return IpfsHash
+    } catch {
+      error('Failed to add epoch to IPFS, exiting.')
       process.exit(1)
     }
   }
 
-  async updateMetadata(cid: string) {}
+  async getEpoch(): Promise<Epoch> {
+    const hash = await prompts.input({
+      message: 'What is the IPFS hash for the rFOX reward distribution you want to process? ',
+    })
+
+    try {
+      const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${hash}`, {
+        headers: {
+          'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
+        },
+      })
+
+      if (isEpoch(data)) {
+        const totalAddresses = Object.keys(data.distributionsByStakingAddress).length
+        const totalRewards = Object.values(data.distributionsByStakingAddress)
+          .reduce((prev, distribution) => {
+            return prev.plus(distribution.amount)
+          }, BigNumber(0))
+          .div(100000000)
+          .toFixed()
+
+        info(
+          `Processing rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} RUNE\n    - Total Addresses: ${totalAddresses}`,
+        )
+
+        return data
+      } else {
+        error(`The contents of IPFS hash (${hash}) are not valid, exiting.`)
+        process.exit(1)
+      }
+    } catch {
+      error(`Failed to get content of IPFS hash (${hash}), exiting.`)
+      process.exit(1)
+    }
+  }
+
+  async updateMetadata(epoch?: { number: number; hash: string }): Promise<string | undefined> {
+    const metadata = await this.getMetadata()
+
+    if (epoch) {
+      const hash = metadata.ipfsHashByEpoch[epoch.number]
+
+      if (hash) {
+        info(`The metadata already contains an IPFS hash for this epoch: ${hash}`)
+
+        const confirmed = await prompts.confirm({
+          message: `Do you want to update the metadata with the new IPFS hash: ${epoch.hash}?`,
+        })
+
+        if (!confirmed) return
+      }
+
+      metadata.ipfsHashByEpoch[epoch.number] = epoch.hash
+
+      const { IpfsHash } = await this.client.pinJSONToIPFS(metadata, {
+        pinataMetadata: { name: 'rFoxMetadata.json' },
+      })
+
+      info(`rFOX Metadata IPFS hash: ${IpfsHash}`)
+
+      return IpfsHash
+    }
+
+    // TODO: manual update walkthrough
+
+    return
+  }
+
+  async getMetadata(): Promise<RFOXMetadata> {
+    const hash = await prompts.input({
+      message: 'What is the IPFS hash for the rFOX metadata you want to update? ',
+    })
+
+    try {
+      const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${hash}`, {
+        headers: {
+          'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
+        },
+      })
+
+      if (isMetadata(data)) return data
+
+      error(`The contents of IPFS hash (${hash}) are not valid, exiting.`)
+      process.exit(1)
+    } catch {
+      error(`Failed to get content of IPFS hash (${hash}), exiting.`)
+      process.exit(1)
+    }
+  }
 }

@@ -1,14 +1,89 @@
 import 'dotenv/config'
 import * as prompts from '@inquirer/prompts'
+import BigNumber from 'bignumber.js'
 import fs from 'node:fs'
 import path from 'node:path'
-import { Epoch } from '../types'
-import { RFOX_DIR } from './constants'
+import ora from 'ora'
+import { Epoch } from './types'
+import { Client } from './client'
+import { MONTHS, RFOX_DIR } from './constants'
 import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
 import { create, recoverKeystore } from './mnemonic'
 import { Wallet } from './wallet'
+
+const processEpoch = async () => {
+  const ipfs = await IPFS.new()
+  const client = await Client.new()
+
+  const metadata = await ipfs.getMetadata('process')
+
+  const month = MONTHS[new Date(metadata.epochStartTimestamp).getUTCMonth()]
+
+  info(`Processing Epoch #${metadata.epoch} for ${month} distribution.`)
+
+  const revenue = await client.getRevenue(metadata.epochStartTimestamp, metadata.epochEndTimestamp)
+
+  info(
+    `Total ${month} revenue earned by ${revenue.address}: ${BigNumber(revenue.amount).div(100000000).toFixed(8)} RUNE`,
+  )
+
+  info(`Share of total revenue to be distributed as rewards: ${metadata.distributionRate * 100}%`)
+  info(`Share of total revenue to buy back fox and burn: ${metadata.burnRate * 100}%`)
+
+  const totalDistribution = BigNumber(BigNumber(revenue.amount).times(metadata.distributionRate).toFixed(0))
+
+  info(`Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`)
+
+  const spinner = ora('Detecting epoch start and end blocks...').start()
+
+  const startBlock =
+    metadata.epoch > 0
+      ? await client.getBlockByTimestamp(BigInt(Math.floor(metadata.epochStartTimestamp / 1000)), 'earliest', spinner)
+      : 0n
+
+  const endBlock = await client.getBlockByTimestamp(
+    BigInt(Math.floor(metadata.epochEndTimestamp / 1000)),
+    'latest',
+    spinner,
+  )
+
+  spinner.succeed()
+
+  info(`Start Block: ${startBlock} - End Block: ${endBlock}`)
+
+  const { totalRewardUnits, distributionsByStakingAddress } = await client.calculateRewards(
+    startBlock,
+    endBlock,
+    totalDistribution,
+  )
+
+  const epochHash = await ipfs.addEpoch({
+    number: metadata.epoch,
+    startTimestamp: metadata.epochStartTimestamp,
+    endTimestamp: metadata.epochEndTimestamp,
+    startBlock: Number(startBlock),
+    endBlock: Number(endBlock),
+    totalRevenue: revenue.amount,
+    totalRewardUnits,
+    distributionRate: metadata.distributionRate,
+    burnRate: metadata.burnRate,
+    treasuryAddress: metadata.treasuryAddress,
+    distributionsByStakingAddress,
+  })
+
+  const nextEpochStartDate = new Date(metadata.epochEndTimestamp + 1)
+
+  await ipfs.updateMetadata(metadata, {
+    epoch: { number: metadata.epoch, hash: epochHash },
+    metadata: {
+      epoch: metadata.epoch + 1,
+      epochStartTimestamp: nextEpochStartDate.getTime(),
+      epochEndTimestamp: Date.UTC(nextEpochStartDate.getUTCFullYear(), nextEpochStartDate.getUTCMonth() + 1) - 1,
+    },
+  })
+}
 
 const run = async () => {
   const ipfs = await IPFS.new()
@@ -41,7 +116,7 @@ const run = async () => {
 
   const wallet = await Wallet.new(mnemonic)
 
-  await processEpoch(epoch, wallet, ipfs)
+  await processDistribution(epoch, wallet, ipfs)
 }
 
 const recover = async (epoch?: Epoch) => {
@@ -54,15 +129,17 @@ const recover = async (epoch?: Epoch) => {
 
   const wallet = await Wallet.new(mnemonic)
 
-  await processEpoch(epoch, wallet, ipfs)
+  await processDistribution(epoch, wallet, ipfs)
 }
 
-const processEpoch = async (epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
+const processDistribution = async (epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
   await wallet.fund(epoch)
   const processedEpoch = await wallet.distribute(epoch)
 
   const processedEpochHash = await ipfs.addEpoch(processedEpoch)
-  await ipfs.updateMetadata({ number: processedEpoch.number, hash: processedEpochHash })
+  const metadata = await ipfs.getMetadata('update')
+
+  await ipfs.updateMetadata(metadata, { epoch: { number: processedEpoch.number, hash: processedEpochHash } })
 
   success(`rFOX reward distribution for Epoch #${processedEpoch.number} has been completed!`)
 
@@ -87,23 +164,30 @@ const main = async () => {
     }
   }
 
-  const choice = await prompts.select<'run' | 'recover'>({
+  const choice = await prompts.select<'process' | 'run' | 'recover'>({
     message: 'What do you want to do?',
     choices: [
       {
+        name: 'Process rFox epoch',
+        value: 'process',
+        description: 'Start here to process a completed rFox epoch',
+      },
+      {
         name: 'Run rFox distribution',
         value: 'run',
-        description: 'Start here to process a new rFox distribution epoch',
+        description: 'Start here to begin running a new rFox rewards distribution',
       },
       {
         name: 'Recover rFox distribution',
         value: 'recover',
-        description: 'Use this to recover from an error during an rFox distribution epoch',
+        description: 'Start here to recover an in progress rFox rewards distribution',
       },
     ],
   })
 
   switch (choice) {
+    case 'process':
+      return processEpoch()
     case 'run':
       return run()
     case 'recover':

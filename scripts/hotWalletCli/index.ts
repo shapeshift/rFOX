@@ -23,6 +23,13 @@ const processEpoch = async () => {
 
   info(`Processing Epoch #${metadata.epoch} for ${month} distribution.`)
 
+  const now = Date.now()
+  if (metadata.epochEndTimestamp > now) {
+    const daysRemaining = Math.round((metadata.epochEndTimestamp - now) / (24 * 60 * 60 * 1000))
+    error(`${daysRemaining} days remaining in the current epoch, exiting.`)
+    process.exit(1)
+  }
+
   const revenue = await client.getRevenue(metadata.epochStartTimestamp, metadata.epochEndTimestamp)
 
   info(
@@ -38,10 +45,11 @@ const processEpoch = async () => {
 
   const spinner = ora('Detecting epoch start and end blocks...').start()
 
-  const startBlock =
-    metadata.epoch > 0
-      ? await client.getBlockByTimestamp(BigInt(Math.floor(metadata.epochStartTimestamp / 1000)), 'earliest', spinner)
-      : 0n
+  const startBlock = await client.getBlockByTimestamp(
+    BigInt(Math.floor(metadata.epochStartTimestamp / 1000)),
+    'earliest',
+    spinner,
+  )
 
   const endBlock = await client.getBlockByTimestamp(
     BigInt(Math.floor(metadata.epochEndTimestamp / 1000)),
@@ -70,6 +78,7 @@ const processEpoch = async () => {
     distributionRate: metadata.distributionRate,
     burnRate: metadata.burnRate,
     treasuryAddress: metadata.treasuryAddress,
+    distributionStatus: 'pending',
     distributionsByStakingAddress,
   })
 
@@ -83,6 +92,12 @@ const processEpoch = async () => {
       epochEndTimestamp: Date.UTC(nextEpochStartDate.getUTCFullYear(), nextEpochStartDate.getUTCMonth() + 1) - 1,
     },
   })
+
+  success(`rFOX Epoch #${metadata.epoch} has been processed!`)
+
+  info(
+    'Please update the rFOX Wiki (https://github.com/shapeshift/rFOX/wiki/rFOX-Metadata) and notify the DAO accordingly. Thanks!',
+  )
 }
 
 const run = async () => {

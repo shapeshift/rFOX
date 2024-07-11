@@ -6,6 +6,7 @@ import { arbitrum } from 'viem/chains'
 import { stakingV1Abi } from './abi'
 import { error, info } from './logging'
 import { RewardDistribution } from './types'
+import { RFOX_WAD } from './constants'
 
 const INFURA_API_KEY = process.env['INFURA_API_KEY']
 
@@ -45,6 +46,12 @@ export class Client {
   async getBlockByTimestamp(targetTimestamp: bigint, blockMode: 'earliest' | 'latest', spinner?: Ora): Promise<bigint> {
     try {
       const latestBlock = await this.rpc.getBlock()
+
+      if (targetTimestamp > latestBlock.timestamp) {
+        spinner?.fail()
+        error(`Block does not exit for target timestamp: ${targetTimestamp.toString()}, exiting.`)
+        process.exit(1)
+      }
 
       const historicalBlock = await this.rpc.getBlock({
         blockNumber: latestBlock.number - BigInt(AVERAGE_BLOCK_TIME_BLOCKS),
@@ -149,35 +156,42 @@ export class Client {
         client: { public: this.archiveRpc },
       })
 
-      const lastEpochEndBlock = startBlock - 1n
+      const prevEpochEndBlock = startBlock - 1n
 
-      let totalRewardUnits = 0n
-      const closingStateByStakingAddress: Record<string, { rewardUnits: bigint; runeAddress: string }> = {}
+      let totalEpochRewardUnits = 0n
+      const closingStateByStakingAddress: Record<
+        string,
+        { rewardUnits: bigint; totalRewardUnits: bigint; runeAddress: string }
+      > = {}
       for await (const address of addresses) {
         const [stakingBalance, _unstakingBalance, _earnedRewards, _rewardPerTokenStored, runeAddress] =
           await archiveContract.read.stakingInfo([getAddress(address)], { blockNumber: endBlock })
 
         if (stakingBalance <= 0n) continue
 
-        const rewardUnitsThroughLastEpoch =
-          lastEpochEndBlock >= 0 ? await archiveContract.read.earned([address], { blockNumber: lastEpochEndBlock }) : 0n
+        const totalRewardUnitsPrevEpoch = await archiveContract.read.earned([address], {
+          blockNumber: prevEpochEndBlock,
+        })
+        const totalRewardUnits = await archiveContract.read.earned([address], { blockNumber: endBlock })
 
-        const rewardUnitsThroughCurrentEpoch = await archiveContract.read.earned([address], { blockNumber: endBlock })
-        const rewardUnits = rewardUnitsThroughCurrentEpoch - rewardUnitsThroughLastEpoch
+        const rewardUnits = (totalRewardUnits - totalRewardUnitsPrevEpoch) / RFOX_WAD
 
-        totalRewardUnits += rewardUnits
+        totalEpochRewardUnits += rewardUnits
 
-        closingStateByStakingAddress[address] = { rewardUnits, runeAddress }
+        closingStateByStakingAddress[address] = { rewardUnits, totalRewardUnits, runeAddress }
       }
 
       const distributionsByStakingAddress: Record<string, RewardDistribution> = {}
-      for await (const [address, { rewardUnits, runeAddress }] of Object.entries(closingStateByStakingAddress)) {
-        const percentageShare = BigNumber(rewardUnits.toString()).div(totalRewardUnits.toString())
+      for await (const [address, { rewardUnits, totalRewardUnits, runeAddress }] of Object.entries(
+        closingStateByStakingAddress,
+      )) {
+        const percentageShare = BigNumber(rewardUnits.toString()).div(totalEpochRewardUnits.toString())
         const amount = percentageShare.times(totalDistribution.toString()).toFixed(0)
 
         distributionsByStakingAddress[address] = {
           amount,
           rewardUnits: rewardUnits.toString(),
+          totalRewardUnits: totalRewardUnits.toString(),
           rewardAddress: runeAddress,
           txId: '',
         }
@@ -188,7 +202,7 @@ export class Client {
       info(`Total addresses receiving rewards: ${addresses.length}`)
 
       return {
-        totalRewardUnits: totalRewardUnits.toString(),
+        totalRewardUnits: totalEpochRewardUnits.toString(),
         distributionsByStakingAddress,
       }
     } catch (err) {

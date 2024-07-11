@@ -86,7 +86,7 @@ export class IPFS {
   async addEpoch(epoch: Epoch): Promise<string> {
     try {
       const { IpfsHash } = await this.client.pinJSONToIPFS(epoch, {
-        pinataMetadata: { name: `rFoxEpoch${epoch.number}.json` },
+        pinataMetadata: { name: `rFoxEpoch${epoch.number}_${epoch.distributionStatus}.json` },
       })
 
       info(`rFOX Epoch #${epoch.number} IPFS hash: ${IpfsHash}`)

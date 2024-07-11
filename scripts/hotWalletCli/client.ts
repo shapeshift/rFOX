@@ -1,12 +1,13 @@
+import * as prompts from '@inquirer/prompts'
 import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import ora, { Ora } from 'ora'
 import { Address, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem'
 import { arbitrum } from 'viem/chains'
 import { stakingV1Abi } from './abi'
-import { error, info } from './logging'
+import { error, info, warn } from './logging'
 import { RewardDistribution } from './types'
-import { RFOX_WAD } from './constants'
+import { RFOX_REWARD_RATE, RFOX_WAD } from './constants'
 
 const INFURA_API_KEY = process.env['INFURA_API_KEY']
 
@@ -22,6 +23,14 @@ type Revenue = {
   address: string
   amount: string
 }
+
+type ClosingState = {
+  rewardUnits: bigint
+  totalRewardUnits: bigint
+  runeAddress: string
+}
+
+type ClosingStateByStakingAddress = Record<string, ClosingState>
 
 export class Client {
   private rpc: PublicClient
@@ -130,9 +139,71 @@ export class Client {
     }
   }
 
+  private async getClosingStateByStakingAddress(
+    addresses: Address[],
+    startBlock: bigint,
+    endBlock: bigint,
+  ): Promise<Record<string, ClosingState>> {
+    const contract = getContract({
+      address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+      abi: stakingV1Abi,
+      client: { public: this.archiveRpc },
+    })
+
+    const prevEpochEndBlock = startBlock - 1n
+
+    const closingStateByStakingAddress: Record<string, ClosingState> = {}
+    for await (const address of addresses) {
+      const [stakingBalance, _unstakingBalance, _earnedRewards, _rewardPerTokenStored, runeAddress] =
+        await contract.read.stakingInfo([getAddress(address)], { blockNumber: endBlock })
+
+      if (stakingBalance <= 0n) continue
+
+      const totalRewardUnitsPrevEpoch = await contract.read.earned([address], {
+        blockNumber: prevEpochEndBlock,
+      })
+      const totalRewardUnits = await contract.read.earned([address], { blockNumber: endBlock })
+
+      const rewardUnits = (totalRewardUnits - totalRewardUnitsPrevEpoch) / RFOX_WAD
+
+      closingStateByStakingAddress[address] = { rewardUnits, totalRewardUnits, runeAddress }
+    }
+
+    return closingStateByStakingAddress
+  }
+
+  private async getDistributionsByStakingAddress(
+    closingStateByStakingAddress: ClosingStateByStakingAddress,
+    totalDistribution: BigNumber,
+  ) {
+    const totalEpochRewardUnits = Object.values(closingStateByStakingAddress).reduce(
+      (prev, { rewardUnits }) => prev + rewardUnits,
+      0n,
+    )
+
+    const distributionsByStakingAddress: Record<string, RewardDistribution> = {}
+    for await (const [address, { rewardUnits, totalRewardUnits, runeAddress }] of Object.entries(
+      closingStateByStakingAddress,
+    )) {
+      const percentageShare = BigNumber(rewardUnits.toString()).div(totalEpochRewardUnits.toString())
+      const amount = percentageShare.times(totalDistribution.toString()).toFixed(0)
+
+      distributionsByStakingAddress[address] = {
+        amount,
+        rewardUnits: rewardUnits.toString(),
+        totalRewardUnits: totalRewardUnits.toString(),
+        rewardAddress: runeAddress,
+        txId: '',
+      }
+    }
+
+    return distributionsByStakingAddress
+  }
+
   async calculateRewards(
     startBlock: bigint,
     endBlock: bigint,
+    secondsInEpoch: bigint,
     totalDistribution: BigNumber,
   ): Promise<{ totalRewardUnits: string; distributionsByStakingAddress: Record<string, RewardDistribution> }> {
     const spinner = ora('Calculating reward distribution').start()
@@ -150,56 +221,56 @@ export class Client {
         ...new Set(stakeEvents.map(event => event.args.account).filter(address => Boolean(address))),
       ] as Address[]
 
-      const archiveContract = getContract({
-        address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
-        abi: stakingV1Abi,
-        client: { public: this.archiveRpc },
-      })
-
-      const prevEpochEndBlock = startBlock - 1n
-
-      let totalEpochRewardUnits = 0n
-      const closingStateByStakingAddress: Record<
-        string,
-        { rewardUnits: bigint; totalRewardUnits: bigint; runeAddress: string }
-      > = {}
-      for await (const address of addresses) {
-        const [stakingBalance, _unstakingBalance, _earnedRewards, _rewardPerTokenStored, runeAddress] =
-          await archiveContract.read.stakingInfo([getAddress(address)], { blockNumber: endBlock })
-
-        if (stakingBalance <= 0n) continue
-
-        const totalRewardUnitsPrevEpoch = await archiveContract.read.earned([address], {
-          blockNumber: prevEpochEndBlock,
-        })
-        const totalRewardUnits = await archiveContract.read.earned([address], { blockNumber: endBlock })
-
-        const rewardUnits = (totalRewardUnits - totalRewardUnitsPrevEpoch) / RFOX_WAD
-
-        totalEpochRewardUnits += rewardUnits
-
-        closingStateByStakingAddress[address] = { rewardUnits, totalRewardUnits, runeAddress }
-      }
-
-      const distributionsByStakingAddress: Record<string, RewardDistribution> = {}
-      for await (const [address, { rewardUnits, totalRewardUnits, runeAddress }] of Object.entries(
+      const closingStateByStakingAddress = await this.getClosingStateByStakingAddress(addresses, startBlock, endBlock)
+      const distributionsByStakingAddress = await this.getDistributionsByStakingAddress(
         closingStateByStakingAddress,
-      )) {
-        const percentageShare = BigNumber(rewardUnits.toString()).div(totalEpochRewardUnits.toString())
-        const amount = percentageShare.times(totalDistribution.toString()).toFixed(0)
+        totalDistribution,
+      )
 
-        distributionsByStakingAddress[address] = {
-          amount,
-          rewardUnits: rewardUnits.toString(),
-          totalRewardUnits: totalRewardUnits.toString(),
-          rewardAddress: runeAddress,
-          txId: '',
-        }
-      }
+      const totalEpochRewardUnits = Object.values(closingStateByStakingAddress).reduce(
+        (prev, { rewardUnits }) => prev + rewardUnits,
+        0n,
+      )
+
+      const totalEpochDistribution = Object.values(distributionsByStakingAddress).reduce(
+        (prev, { amount }) => prev.plus(BigNumber(amount)),
+        BigNumber(0),
+      )
 
       spinner.succeed()
 
       info(`Total addresses receiving rewards: ${addresses.length}`)
+
+      const epochRewardUnits = (RFOX_REWARD_RATE / RFOX_WAD) * secondsInEpoch
+      const epochRewardUnitsMargin = BigNumber(epochRewardUnits.toString()).times(0.01)
+
+      if (epochRewardUnitsMargin.lte(Math.abs(Number(epochRewardUnits - totalEpochRewardUnits)))) {
+        warn(
+          'The total reward units calculated for all stakers is outside of the expected 1% margin of the total epoch reward units.',
+        )
+
+        info(`Total Reward Units Calculated: ${totalEpochRewardUnits}`)
+        info(`Total Epoch Reward Units: ${epochRewardUnits}`)
+
+        const confirmed = await prompts.confirm({ message: 'Do you want to continue? ' })
+
+        if (!confirmed) process.exit(0)
+      }
+
+      const totalDistributionMargin = totalDistribution.times(0.01)
+
+      if (totalDistributionMargin.lte(Math.abs(totalDistribution.minus(totalEpochDistribution).toNumber()))) {
+        warn(
+          'The total reward distribution calculated for all stakers is outside of the expected 1% margin of the total rewards to be distributed.',
+        )
+
+        info(`Total Distribtution Calculated: ${totalEpochDistribution.div(100000000).toFixed()} RUNE`)
+        info(`Total Epoch Distribution: ${totalDistribution.div(100000000).toFixed()} RUNE`)
+
+        const confirmed = await prompts.confirm({ message: 'Do you want to continue? ' })
+
+        if (!confirmed) process.exit(0)
+      }
 
       return {
         totalRewardUnits: totalEpochRewardUnits.toString(),

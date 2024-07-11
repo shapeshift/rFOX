@@ -19,6 +19,8 @@ const processEpoch = async () => {
 
   const metadata = await ipfs.getMetadata('process')
 
+  metadata.epochEndTimestamp = Date.now()
+
   const month = MONTHS[new Date(metadata.epochStartTimestamp).getUTCMonth()]
 
   info(`Processing Epoch #${metadata.epoch} for ${month} distribution.`)
@@ -59,11 +61,15 @@ const processEpoch = async () => {
 
   spinner.succeed()
 
-  info(`Start Block: ${startBlock} - End Block: ${endBlock}`)
+  info(`Start Block: ${startBlock}`)
+  info(`End Block: ${endBlock}`)
+
+  const secondsInEpoch = BigInt(Math.floor((metadata.epochEndTimestamp - metadata.epochStartTimestamp) / 1000))
 
   const { totalRewardUnits, distributionsByStakingAddress } = await client.calculateRewards(
     startBlock,
     endBlock,
+    secondsInEpoch,
     totalDistribution,
   )
 
@@ -106,11 +112,11 @@ const run = async () => {
   const epoch = await ipfs.getEpoch()
 
   if (isEpochDistributionStarted(epoch.number)) {
-    const cont = await prompts.confirm({
+    const confirmed = await prompts.confirm({
       message: 'It looks like you have already started a distribution for this epoch. Do you want to continue? ',
     })
 
-    if (cont) return recover(epoch)
+    if (confirmed) return recover(epoch)
 
     info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
     warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')

@@ -36,5 +36,6 @@ jobs:
         id: test
       - name: Generate coverage report
         run: |
+          forge clean
           forge coverage --report summary
         id: coverage

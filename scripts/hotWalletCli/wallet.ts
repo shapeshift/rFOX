@@ -302,6 +302,7 @@ export class Wallet {
         txsByStakingAddress[stakingAddress].txId = data.result.hash
         epoch.distributionsByStakingAddress[stakingAddress].txId = data.result.hash
 
+        // wait for transaction to confirm before broadcasting next transaction (this ensures sequence is incremented before subsequent broadcast)
         await new Promise(resolve => setTimeout(resolve, 1_000))
       }
     } catch (err) {

@@ -4,10 +4,10 @@ import BigNumber from 'bignumber.js'
 import ora, { Ora } from 'ora'
 import { Address, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem'
 import { arbitrum } from 'viem/chains'
-import { stakingV1Abi } from './abi'
+import { RFOX_REWARD_RATE, RFOX_WAD } from './constants'
+import { stakingV1Abi } from './generated/abi'
 import { error, info, warn } from './logging'
 import { RewardDistribution } from './types'
-import { RFOX_REWARD_RATE, RFOX_WAD } from './constants'
 
 const INFURA_API_KEY = process.env['INFURA_API_KEY']
 
@@ -34,15 +34,9 @@ type ClosingStateByStakingAddress = Record<string, ClosingState>
 
 export class Client {
   private rpc: PublicClient
-  private archiveRpc: PublicClient
 
   constructor() {
     this.rpc = createPublicClient({
-      chain: arbitrum,
-      transport: http('https://api.arbitrum.shapeshift.com/api/v1/jsonrpc'),
-    })
-
-    this.archiveRpc = createPublicClient({
       chain: arbitrum,
       transport: http(`https://arbitrum-mainnet.infura.io/v3/${INFURA_API_KEY}`),
     })
@@ -147,7 +141,7 @@ export class Client {
     const contract = getContract({
       address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
       abi: stakingV1Abi,
-      client: { public: this.archiveRpc },
+      client: { public: this.rpc },
     })
 
     const prevEpochEndBlock = startBlock - 1n

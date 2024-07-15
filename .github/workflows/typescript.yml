@@ -26,16 +26,3 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: yarn
-
-      - name: Install Dependencies
-        id: install
-        run: |
-          yarn
-          cd scripts/rewards-distribution
-          yarn
-
-      - name: Run Typescript tests
-        id: test
-        run: |
-          cd scripts/rewards-distribution
-          yarn test

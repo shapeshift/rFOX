@@ -2,8 +2,8 @@ import * as prompts from '@inquirer/prompts'
 import PinataClient from '@pinata/sdk'
 import axios from 'axios'
 import BigNumber from 'bignumber.js'
-import { Epoch, RFOXMetadata, RewardDistribution } from '../types'
 import { error, info } from './logging'
+import { Epoch, RFOXMetadata, RewardDistribution } from './types'
 
 const PINATA_API_KEY = process.env['PINATA_API_KEY']
 const PINATA_SECRET_API_KEY = process.env['PINATA_SECRET_API_KEY']
@@ -86,7 +86,7 @@ export class IPFS {
   async addEpoch(epoch: Epoch): Promise<string> {
     try {
       const { IpfsHash } = await this.client.pinJSONToIPFS(epoch, {
-        pinataMetadata: { name: `rFoxEpoch${epoch.number}.json` },
+        pinataMetadata: { name: `rFoxEpoch${epoch.number}_${epoch.distributionStatus}.json` },
       })
 
       info(`rFOX Epoch #${epoch.number} IPFS hash: ${IpfsHash}`)
@@ -134,31 +134,43 @@ export class IPFS {
     }
   }
 
-  async updateMetadata(epoch?: { number: number; hash: string }): Promise<string | undefined> {
-    const metadata = await this.getMetadata()
+  async updateMetadata(
+    metadata: RFOXMetadata,
+    overrides?: {
+      epoch?: { number: number; hash: string }
+      metadata?: Partial<Pick<RFOXMetadata, 'epoch' | 'epochStartTimestamp' | 'epochEndTimestamp'>>
+    },
+  ): Promise<string | undefined> {
+    if (overrides) {
+      if (overrides.metadata?.epoch !== undefined) metadata.epoch = overrides.metadata.epoch
+      if (overrides.metadata?.epochStartTimestamp !== undefined)
+        metadata.epochStartTimestamp = overrides.metadata.epochStartTimestamp
+      if (overrides.metadata?.epochEndTimestamp !== undefined)
+        metadata.epochEndTimestamp = overrides.metadata.epochEndTimestamp
 
-    if (epoch) {
-      const hash = metadata.ipfsHashByEpoch[epoch.number]
+      if (overrides.epoch) {
+        const hash = metadata.ipfsHashByEpoch[overrides.epoch.number]
 
-      if (hash) {
-        info(`The metadata already contains an IPFS hash for this epoch: ${hash}`)
+        if (hash) {
+          info(`The metadata already contains an IPFS hash for this epoch: ${hash}`)
 
-        const confirmed = await prompts.confirm({
-          message: `Do you want to update the metadata with the new IPFS hash: ${epoch.hash}?`,
+          const confirmed = await prompts.confirm({
+            message: `Do you want to update the metadata with the new IPFS hash: ${overrides.epoch.hash}?`,
+          })
+
+          if (!confirmed) return
+        }
+
+        metadata.ipfsHashByEpoch[overrides.epoch.number] = overrides.epoch.hash
+
+        const { IpfsHash } = await this.client.pinJSONToIPFS(metadata, {
+          pinataMetadata: { name: 'rFoxMetadata.json' },
         })
 
-        if (!confirmed) return
+        info(`rFOX Metadata IPFS hash: ${IpfsHash}`)
+
+        return IpfsHash
       }
-
-      metadata.ipfsHashByEpoch[epoch.number] = epoch.hash
-
-      const { IpfsHash } = await this.client.pinJSONToIPFS(metadata, {
-        pinataMetadata: { name: 'rFoxMetadata.json' },
-      })
-
-      info(`rFOX Metadata IPFS hash: ${IpfsHash}`)
-
-      return IpfsHash
     }
 
     // TODO: manual update walkthrough
@@ -166,9 +178,9 @@ export class IPFS {
     return
   }
 
-  async getMetadata(): Promise<RFOXMetadata> {
+  async getMetadata(promptAction: string): Promise<RFOXMetadata> {
     const hash = await prompts.input({
-      message: 'What is the IPFS hash for the rFOX metadata you want to update? ',
+      message: `What is the IPFS hash for the rFOX metadata you want to ${promptAction}? `,
     })
 
     try {

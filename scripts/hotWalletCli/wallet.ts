@@ -5,10 +5,10 @@ import chalk from 'chalk'
 import symbols from 'log-symbols'
 import path from 'node:path'
 import ora, { Ora } from 'ora'
-import { Epoch } from '../types'
 import { RFOX_DIR } from './constants'
 import { read, write } from './file'
 import { error, info, success } from './logging'
+import { Epoch } from './types'
 
 const BIP32_PATH = `m/44'/931'/0'/0/0`
 const SHAPESHIFT_MULTISIG_ADDRESS = 'thor1xmaggkcln5m5fnha2780xrdrulmplvfrz6wj3l'
@@ -302,6 +302,7 @@ export class Wallet {
         txsByStakingAddress[stakingAddress].txId = data.result.hash
         epoch.distributionsByStakingAddress[stakingAddress].txId = data.result.hash
 
+        // wait for transaction to confirm before broadcasting next transaction (this ensures sequence is incremented before subsequent broadcast)
         await new Promise(resolve => setTimeout(resolve, 1_000))
       }
     } catch (err) {

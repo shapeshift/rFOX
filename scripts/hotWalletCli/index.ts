@@ -19,8 +19,6 @@ const processEpoch = async () => {
 
   const metadata = await ipfs.getMetadata('process')
 
-  metadata.epochEndTimestamp = Date.now()
-
   const month = MONTHS[new Date(metadata.epochStartTimestamp).getUTCMonth()]
 
   info(`Processing Epoch #${metadata.epoch} for ${month} distribution.`)

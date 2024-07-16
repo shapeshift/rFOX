@@ -158,7 +158,7 @@ export class Client {
       })
       const totalRewardUnits = await contract.read.earned([address], { blockNumber: endBlock })
 
-      const rewardUnits = (totalRewardUnits - totalRewardUnitsPrevEpoch) / RFOX_WAD
+      const rewardUnits = totalRewardUnits - totalRewardUnitsPrevEpoch
 
       closingStateByStakingAddress[address] = { rewardUnits, totalRewardUnits, runeAddress }
     }
@@ -235,7 +235,7 @@ export class Client {
 
       info(`Total addresses receiving rewards: ${addresses.length}`)
 
-      const epochRewardUnits = (RFOX_REWARD_RATE / RFOX_WAD) * secondsInEpoch
+      const epochRewardUnits = RFOX_REWARD_RATE * secondsInEpoch
       const epochRewardUnitsMargin = BigNumber(epochRewardUnits.toString()).times(0.01)
 
       if (epochRewardUnitsMargin.lte(Math.abs(Number(epochRewardUnits - totalEpochRewardUnits)))) {

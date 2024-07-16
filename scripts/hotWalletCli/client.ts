@@ -148,10 +148,7 @@ export class Client {
 
     const closingStateByStakingAddress: Record<string, ClosingState> = {}
     for await (const address of addresses) {
-      const [stakingBalance, _unstakingBalance, _earnedRewards, _rewardPerTokenStored, runeAddress] =
-        await contract.read.stakingInfo([getAddress(address)], { blockNumber: endBlock })
-
-      if (stakingBalance <= 0n) continue
+      const [, , , , runeAddress] = await contract.read.stakingInfo([getAddress(address)], { blockNumber: endBlock })
 
       const totalRewardUnitsPrevEpoch = await contract.read.earned([address], {
         blockNumber: prevEpochEndBlock,
@@ -159,6 +156,8 @@ export class Client {
       const totalRewardUnits = await contract.read.earned([address], { blockNumber: endBlock })
 
       const rewardUnits = totalRewardUnits - totalRewardUnitsPrevEpoch
+
+      if (rewardUnits <= 0) continue
 
       closingStateByStakingAddress[address] = { rewardUnits, totalRewardUnits, runeAddress }
     }
@@ -236,11 +235,11 @@ export class Client {
       info(`Total addresses receiving rewards: ${addresses.length}`)
 
       const epochRewardUnits = RFOX_REWARD_RATE * secondsInEpoch
-      const epochRewardUnitsMargin = BigNumber(epochRewardUnits.toString()).times(0.01)
+      const epochRewardUnitsMargin = BigNumber(epochRewardUnits.toString()).times(0.0001)
 
       if (epochRewardUnitsMargin.lte(Math.abs(Number(epochRewardUnits - totalEpochRewardUnits)))) {
         warn(
-          'The total reward units calculated for all stakers is outside of the expected 1% margin of the total epoch reward units.',
+          'The total reward units calculated for all stakers is outside of the expected .01% margin of the total epoch reward units.',
         )
 
         info(`Total Reward Units Calculated: ${totalEpochRewardUnits}`)
@@ -251,11 +250,11 @@ export class Client {
         if (!confirmed) process.exit(0)
       }
 
-      const totalDistributionMargin = totalDistribution.times(0.01)
+      const totalDistributionMargin = totalDistribution.times(0.0001)
 
       if (totalDistributionMargin.lte(Math.abs(totalDistribution.minus(totalEpochDistribution).toNumber()))) {
         warn(
-          'The total reward distribution calculated for all stakers is outside of the expected 1% margin of the total rewards to be distributed.',
+          'The total reward distribution calculated for all stakers is outside of the expected .01% margin of the total rewards to be distributed.',
         )
 
         info(`Total Distribtution Calculated: ${totalEpochDistribution.div(100000000).toFixed()} RUNE`)

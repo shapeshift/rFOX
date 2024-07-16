@@ -1,8 +1,8 @@
 {
-  "name": "hot-wallet-cli",
+  "name": "rfox-cli",
   "version": "1.0.0",
   "type": "module",
-  "exports": "./index.js",
+  "exports": "./src/index.js",
   "engines": {
     "node": ">=18"
   },
@@ -10,7 +10,7 @@
   "scripts": {
     "clean": "rm -rf node_modules",
     "generate": "yarn wagmi generate",
-    "start": "tsx index.ts"
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
     "@inquirer/core": "^8.2.2",

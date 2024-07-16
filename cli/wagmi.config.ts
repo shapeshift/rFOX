@@ -2,7 +2,7 @@ import { defineConfig } from '@wagmi/cli'
 import { foundry, FoundryConfig } from '@wagmi/cli/plugins'
 
 const foundryConfig: FoundryConfig = {
-  project: '../../foundry',
+  project: '../foundry',
   artifacts: 'out',
   include: ['StakingV1.json'],
 }

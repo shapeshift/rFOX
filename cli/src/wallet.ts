@@ -159,7 +159,7 @@ export class Wallet {
     success(`Unsigned funding transaction created (${unsignedTxFile})`)
 
     info(
-      `Follow the steps for signing and broadcasting the funding transaction as detailed here: https://github.com/shapeshift/rFOX/blob/main/scripts/hotWalletCli/MultiSig.md`,
+      'Follow the steps for signing and broadcasting the funding transaction as detailed here: https://github.com/shapeshift/rFOX/blob/main/cli/MultiSig.md',
     )
 
     const spinner = ora('Waiting for hot wallet to be funded...').start()

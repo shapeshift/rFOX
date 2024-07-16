@@ -12,7 +12,7 @@
     "typescript": "^5.4.5"
   },
   "scripts": {
-    "build": "forge build --root foundry && cd scripts/hotWalletCli && yarn && yarn generate",
+    "build": "forge build --root foundry && cd cli && yarn && yarn generate",
     "lint:sol": "npx prettier --write --plugin=prettier-plugin-solidity foundry/src/**/*.sol foundry/test/**/*.t.sol"
   },
   "simple-git-hooks": {

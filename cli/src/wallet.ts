@@ -8,7 +8,7 @@ import ora, { Ora } from 'ora'
 import { RFOX_DIR } from './constants'
 import { read, write } from './file'
 import { error, info, success } from './logging'
-import { EpochWithHash } from './types'
+import { Epoch } from './types'
 
 const BIP32_PATH = `m/44'/931'/0'/0/0`
 const SHAPESHIFT_MULTISIG_ADDRESS = 'thor1xmaggkcln5m5fnha2780xrdrulmplvfrz6wj3l'
@@ -70,7 +70,7 @@ export class Wallet {
     }
   }
 
-  private async buildFundingTransaction(amount: string, epoch: EpochWithHash) {
+  private async buildFundingTransaction(amount: string, epoch: Epoch, hash: string) {
     const { address } = await this.getAddress()
 
     return {
@@ -88,7 +88,7 @@ export class Wallet {
             ],
           },
         ],
-        memo: `Fund rFOX rewards distribution - Epoch #${epoch.number} (IPFS Hash: ${epoch.hash})`,
+        memo: `Fund rFOX rewards distribution - Epoch #${epoch.number} (IPFS Hash: ${hash})`,
         timeout_height: '0',
         extension_options: [],
         non_critical_extension_options: [],
@@ -106,7 +106,7 @@ export class Wallet {
     }
   }
 
-  async fund(epoch: EpochWithHash) {
+  async fund(epoch: Epoch, epochHash: string) {
     const { address } = await this.getAddress()
 
     const distributions = Object.values(epoch.distributionsByStakingAddress)
@@ -152,7 +152,7 @@ export class Wallet {
 
     if (await isFunded()) return
 
-    const unsignedTx = await this.buildFundingTransaction(totalAmount, epoch)
+    const unsignedTx = await this.buildFundingTransaction(totalAmount, epoch, epochHash)
     const unsignedTxFile = path.join(RFOX_DIR, `unsignedTx_epoch-${epoch.number}.json`)
 
     write(unsignedTxFile, JSON.stringify(unsignedTx, null, 2))
@@ -173,7 +173,7 @@ export class Wallet {
     })()
   }
 
-  private async signTransactions(epoch: EpochWithHash): Promise<TxsByStakingAddress> {
+  private async signTransactions(epoch: Epoch, epochHash: string): Promise<TxsByStakingAddress> {
     const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
     const txs = read(txsFile)
 
@@ -230,7 +230,7 @@ export class Wallet {
                 amount: [],
                 gas: '0',
               },
-              memo: `rFOX reward (Staking Address: ${stakingAddress}) - Epoch #${epoch.number} (IPFS Hash: ${epoch.hash})`,
+              memo: `rFOX reward (Staking Address: ${stakingAddress}) - Epoch #${epoch.number} (IPFS Hash: ${epochHash})`,
               signatures: [],
             },
           }
@@ -273,7 +273,7 @@ export class Wallet {
     return txsByStakingAddress
   }
 
-  async broadcastTransactions(epoch: EpochWithHash, txsByStakingAddress: TxsByStakingAddress): Promise<EpochWithHash> {
+  async broadcastTransactions(epoch: Epoch, txsByStakingAddress: TxsByStakingAddress): Promise<Epoch> {
     const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
     const spinner = ora(`Broadcasting ${totalTxs} transactions...`).start()
 
@@ -330,8 +330,8 @@ export class Wallet {
     return epoch
   }
 
-  async distribute(epoch: EpochWithHash): Promise<EpochWithHash> {
-    const txsByStakingAddress = await this.signTransactions(epoch)
+  async distribute(epoch: Epoch, epochHash: string): Promise<Epoch> {
+    const txsByStakingAddress = await this.signTransactions(epoch, epochHash)
     return this.broadcastTransactions(epoch, txsByStakingAddress)
   }
 }

@@ -10,7 +10,7 @@ import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
 import { create, recoverKeystore } from './mnemonic'
-import { EpochWithHash } from './types'
+import { Epoch, RFOXMetadata } from './types'
 import { Wallet } from './wallet'
 
 const processEpoch = async () => {
@@ -109,14 +109,15 @@ const processEpoch = async () => {
 const run = async () => {
   const ipfs = await IPFS.new()
 
-  const epoch = await ipfs.getEpochFromMetadata()
+  const metadata = await ipfs.getMetadata('process')
+  const epoch = await ipfs.getEpochFromMetadata(metadata)
 
   if (isEpochDistributionStarted(epoch.number)) {
     const confirmed = await prompts.confirm({
       message: 'It looks like you have already started a distribution for this epoch. Do you want to continue? ',
     })
 
-    if (confirmed) return recover(epoch)
+    if (confirmed) return recover(metadata)
 
     info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
     warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
@@ -137,22 +138,24 @@ const run = async () => {
 
   const wallet = await Wallet.new(mnemonic)
 
-  await processDistribution(epoch, wallet, ipfs)
+  await processDistribution(metadata, epoch, wallet, ipfs)
 }
 
-const recover = async (epoch?: EpochWithHash) => {
+const recover = async (metadata?: RFOXMetadata) => {
   const ipfs = await IPFS.new()
 
-  if (!epoch) {
-    epoch = await ipfs.getEpochFromMetadata()
+  if (!metadata) {
+    metadata = await ipfs.getMetadata('process')
   }
+
+  const epoch = await ipfs.getEpochFromMetadata(metadata)
 
   const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch.number}.txt`)
   const mnemonic = await recoverKeystore(keystoreFile)
 
   const wallet = await Wallet.new(mnemonic)
 
-  await processDistribution(epoch, wallet, ipfs)
+  await processDistribution(metadata, epoch, wallet, ipfs)
 }
 
 const update = async () => {
@@ -170,18 +173,22 @@ const update = async () => {
   )
 }
 
-const processDistribution = async (epoch: EpochWithHash, wallet: Wallet, ipfs: IPFS) => {
-  await wallet.fund(epoch)
-  const processedEpoch = await wallet.distribute(epoch)
+const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
+  const epochHash = metadata.ipfsHashByEpoch[epoch.number]
 
-  const processedEpochHash = await ipfs.addEpoch(processedEpoch)
-  const metadata = await ipfs.getMetadata('process')
+  await wallet.fund(epoch, epochHash)
+  const processedEpoch = await wallet.distribute(epoch, epochHash)
 
-  const hash = await ipfs.updateMetadata(metadata, {
+  const processedEpochHash = await ipfs.addEpoch({
+    ...processedEpoch,
+    distributionStatus: 'complete',
+  })
+
+  const metadataHash = await ipfs.updateMetadata(metadata, {
     epoch: { number: processedEpoch.number, hash: processedEpochHash },
   })
 
-  if (!hash) return
+  if (!metadataHash) return
 
   success(`rFOX reward distribution for Epoch #${processedEpoch.number} has been completed!`)
 

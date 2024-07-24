@@ -1,12 +1,19 @@
 ## Prerequisites
 
-- Install golang: https://go.dev/doc/install
+- Install golang (v1.22): https://go.dev/doc/install
+- Create common rfox directory in your home directory. This is where all output files from the script will be stored and where shared files (unsigned transactions, signatures, signed transactions, etc.) should be saved.
+  ```bash
+  mkdir ~/rfox
+  ```
 
 ## Clone and Build
 
 ```bash
 git clone https://gitlab.com/thorchain/thornode.git
-cd thornode/cmd/thornode
+cd thornode
+git checkout develop
+git pull
+cd cmd/thornode
 go build --tags cgo,ledger
 ```
 
@@ -22,8 +29,12 @@ go build --tags cgo,ledger
   ```
 - Import signer pubkeys:
   ```bash
-  ./thornode keys add {person2} --pubkey {pubkey}
-  ./thornode keys add {person3} --pubkey {pubkey}
+  ./thornode keys add {person2} --pubkey '{person2_pubkey}'
+  ./thornode keys add {person3} --pubkey '{person3_pubkey}'
+  ```
+- View keys:
+  ```bash
+  ./thornode keys list
   ```
 - Add multisig key:
   ```bash
@@ -38,15 +49,15 @@ go build --tags cgo,ledger
 
 - Person 1 signs:
   ```bash
-  ./thornode tx sign --from {person1} --multisig multisig {unsignedTx_epoch-N.json} --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --from ledger --ledger --sign-mode amino-json > signedTx_{person1}.json
+  ./thornode tx sign --from {person1} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person1}.json
   ```
 - Person 2 signs:
   ```bash
-  ./thornode tx sign --from {person2} --multisig multisig {unsignedTx_epoch-N.json} --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --from ledger --ledger --sign-mode amino-json > signedTx_{person2}.json
+  ./thornode tx sign --from {person2} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person2}.json
   ```
 - Multisign:
   ```bash
-  ./thornode tx multisign {unsignedTx_epoch-N.json} multisig signedTx_{person1}.json signedTx_{person2}.json --from multisig --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc > signedTx_multisig.json
+  ./thornode tx multisign ~/rfox/unsignedTx_epoch-{N}.json multisig ~/rfox/signedTx_epoch-{N}_{person1}.json ~/rfox/signedTx_epoch-{N}_{person2}.json --from multisig --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc > ~/rfox/signedTx_epoch-{N}_multisig.json
   ```
 
 ## Send Transaction
@@ -54,13 +65,14 @@ go build --tags cgo,ledger
 - Simulate transaction:
 
   ```bash
-  ./thornode tx broadcast signedTx_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto --dry-run > simulatedTx.json
+  ./thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --dry-run > ~/rfox/simulatedTx_epoch-{N}.json
   ```
 
   - Validate contents of `simulatedTx.json` for accuracy before broadcasting
 
 - Broadcast transaction:
   ```bash
-  ./thornode tx broadcast signedTx_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
+  ./thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
   ```
-  - Copy the `txhash` value from `tx.json` to supply to the cli in order to continue
+
+At this point, the cli should pick up the funding transaction and continue running the distribution from the hot wallet.

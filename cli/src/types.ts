@@ -88,5 +88,3 @@ export type Epoch = {
   /** A record of staking address to reward distribution for this epoch */
   distributionsByStakingAddress: Record<string, RewardDistribution>
 }
-
-export type EpochWithHash = Epoch & { hash: string }

@@ -3,7 +3,7 @@ import PinataClient from '@pinata/sdk'
 import axios from 'axios'
 import BigNumber from 'bignumber.js'
 import { error, info } from './logging'
-import { Epoch, EpochWithHash, RFOXMetadata, RewardDistribution } from './types'
+import { Epoch, RFOXMetadata, RewardDistribution } from './types'
 import { MONTHS } from './constants'
 
 const PINATA_API_KEY = process.env['PINATA_API_KEY']
@@ -99,7 +99,7 @@ export class IPFS {
     }
   }
 
-  async getEpoch(hash?: string): Promise<EpochWithHash> {
+  async getEpoch(hash?: string): Promise<Epoch> {
     if (!hash) {
       hash = await prompts.input({
         message: 'What is the IPFS hash for the rFOX epoch you want to process? ',
@@ -127,7 +127,7 @@ export class IPFS {
           `Running ${month} rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} RUNE\n    - Total Addresses: ${totalAddresses}`,
         )
 
-        return { ...data, hash }
+        return data
       } else {
         error(`The contents of IPFS hash (${hash}) are not valid epoch contents, exiting.`)
         process.exit(1)
@@ -153,18 +153,6 @@ export class IPFS {
         metadata.epochEndTimestamp = overrides.metadata.epochEndTimestamp
 
       if (overrides.epoch) {
-        const hash = metadata.ipfsHashByEpoch[overrides.epoch.number]
-
-        if (hash) {
-          info(`The metadata already contains an IPFS hash for this epoch: ${hash}`)
-
-          const confirmed = await prompts.confirm({
-            message: `Do you want to update the metadata with the new IPFS hash: ${overrides.epoch.hash}?`,
-          })
-
-          if (!confirmed) return
-        }
-
         metadata.ipfsHashByEpoch[overrides.epoch.number] = overrides.epoch.hash
 
         const { IpfsHash } = await this.client.pinJSONToIPFS(metadata, {
@@ -308,9 +296,7 @@ export class IPFS {
     }
   }
 
-  async getEpochFromMetadata(): Promise<EpochWithHash> {
-    const metadata = await this.getMetadata('process')
-
+  async getEpochFromMetadata(metadata: RFOXMetadata): Promise<Epoch> {
     const hash = metadata.ipfsHashByEpoch[metadata.epoch - 1]
 
     if (!hash) {

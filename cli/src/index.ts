@@ -88,7 +88,7 @@ const processEpoch = async () => {
 
   const nextEpochStartDate = new Date(metadata.epochEndTimestamp + 1)
 
-  const hash = await ipfs.updateMetadata(metadata, {
+  const hash = await ipfs.updateMetadata(Object.assign({}, metadata), {
     epoch: { number: metadata.epoch, hash: epochHash },
     metadata: {
       epoch: metadata.epoch + 1,
@@ -103,6 +103,9 @@ const processEpoch = async () => {
 
   info(
     'Please update the rFOX Wiki (https://github.com/shapeshift/rFOX/wiki/rFOX-Metadata) and notify the DAO accordingly. Thanks!',
+  )
+  warn(
+    'Important: CURRENT_EPOCH_METADATA_IPFS_HASH must be updated in web (https://github.com/shapeshift/web/blob/develop/src/pages/RFOX/constants.ts).',
   )
 }
 
@@ -170,6 +173,9 @@ const update = async () => {
 
   info(
     'Please update the rFOX Wiki (https://github.com/shapeshift/rFOX/wiki/rFOX-Metadata) and notify the DAO accordingly. Thanks!',
+  )
+  warn(
+    'Important: CURRENT_EPOCH_METADATA_IPFS_HASH must be updated in web (https://github.com/shapeshift/web/blob/develop/src/pages/RFOX/constants.ts).',
   )
 }
 

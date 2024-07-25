@@ -10,7 +10,7 @@ import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
 import { create, recoverKeystore } from './mnemonic'
-import { Epoch } from './types'
+import { Epoch, RFOXMetadata } from './types'
 import { Wallet } from './wallet'
 
 const processEpoch = async () => {
@@ -21,7 +21,7 @@ const processEpoch = async () => {
 
   const month = MONTHS[new Date(metadata.epochStartTimestamp).getUTCMonth()]
 
-  info(`Processing Epoch #${metadata.epoch} for ${month} distribution.`)
+  info(`Processing rFOX Epoch #${metadata.epoch} for ${month} distribution.`)
 
   const now = Date.now()
   if (metadata.epochEndTimestamp > now) {
@@ -88,7 +88,7 @@ const processEpoch = async () => {
 
   const nextEpochStartDate = new Date(metadata.epochEndTimestamp + 1)
 
-  await ipfs.updateMetadata(metadata, {
+  const hash = await ipfs.updateMetadata(metadata, {
     epoch: { number: metadata.epoch, hash: epochHash },
     metadata: {
       epoch: metadata.epoch + 1,
@@ -96,6 +96,8 @@ const processEpoch = async () => {
       epochEndTimestamp: Date.UTC(nextEpochStartDate.getUTCFullYear(), nextEpochStartDate.getUTCMonth() + 1) - 1,
     },
   })
+
+  if (!hash) return
 
   success(`rFOX Epoch #${metadata.epoch} has been processed!`)
 
@@ -107,14 +109,15 @@ const processEpoch = async () => {
 const run = async () => {
   const ipfs = await IPFS.new()
 
-  const epoch = await ipfs.getEpoch()
+  const metadata = await ipfs.getMetadata('process')
+  const epoch = await ipfs.getEpochFromMetadata(metadata)
 
   if (isEpochDistributionStarted(epoch.number)) {
     const confirmed = await prompts.confirm({
       message: 'It looks like you have already started a distribution for this epoch. Do you want to continue? ',
     })
 
-    if (confirmed) return recover(epoch)
+    if (confirmed) return recover(metadata)
 
     info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
     warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
@@ -135,30 +138,57 @@ const run = async () => {
 
   const wallet = await Wallet.new(mnemonic)
 
-  await processDistribution(epoch, wallet, ipfs)
+  await processDistribution(metadata, epoch, wallet, ipfs)
 }
 
-const recover = async (epoch?: Epoch) => {
+const recover = async (metadata?: RFOXMetadata) => {
   const ipfs = await IPFS.new()
 
-  if (!epoch) epoch = await ipfs.getEpoch()
+  if (!metadata) {
+    metadata = await ipfs.getMetadata('process')
+  }
+
+  const epoch = await ipfs.getEpochFromMetadata(metadata)
 
   const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch.number}.txt`)
   const mnemonic = await recoverKeystore(keystoreFile)
 
   const wallet = await Wallet.new(mnemonic)
 
-  await processDistribution(epoch, wallet, ipfs)
+  await processDistribution(metadata, epoch, wallet, ipfs)
 }
 
-const processDistribution = async (epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
-  await wallet.fund(epoch)
-  const processedEpoch = await wallet.distribute(epoch)
+const update = async () => {
+  const ipfs = await IPFS.new()
 
-  const processedEpochHash = await ipfs.addEpoch(processedEpoch)
   const metadata = await ipfs.getMetadata('update')
+  const hash = await ipfs.updateMetadata(metadata)
 
-  await ipfs.updateMetadata(metadata, { epoch: { number: processedEpoch.number, hash: processedEpochHash } })
+  if (!hash) return
+
+  success(`rFOX metadata has been updated!`)
+
+  info(
+    'Please update the rFOX Wiki (https://github.com/shapeshift/rFOX/wiki/rFOX-Metadata) and notify the DAO accordingly. Thanks!',
+  )
+}
+
+const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
+  const epochHash = metadata.ipfsHashByEpoch[epoch.number]
+
+  await wallet.fund(epoch, epochHash)
+  const processedEpoch = await wallet.distribute(epoch, epochHash)
+
+  const processedEpochHash = await ipfs.addEpoch({
+    ...processedEpoch,
+    distributionStatus: 'complete',
+  })
+
+  const metadataHash = await ipfs.updateMetadata(metadata, {
+    epoch: { number: processedEpoch.number, hash: processedEpochHash },
+  })
+
+  if (!metadataHash) return
 
   success(`rFOX reward distribution for Epoch #${processedEpoch.number} has been completed!`)
 
@@ -183,23 +213,28 @@ const main = async () => {
     }
   }
 
-  const choice = await prompts.select<'process' | 'run' | 'recover'>({
+  const choice = await prompts.select<'process' | 'run' | 'recover' | 'update'>({
     message: 'What do you want to do?',
     choices: [
       {
-        name: 'Process rFox epoch',
+        name: 'Process rFOX epoch',
         value: 'process',
-        description: 'Start here to process a completed rFox epoch',
+        description: 'Start here to process an rFOX epoch.',
       },
       {
-        name: 'Run rFox distribution',
+        name: 'Run rFOX distribution',
         value: 'run',
-        description: 'Start here to begin running a new rFox rewards distribution',
+        description: 'Start here to run an rFOX rewards distribution.',
       },
       {
-        name: 'Recover rFox distribution',
+        name: 'Recover rFOX distribution',
         value: 'recover',
-        description: 'Start here to recover an in progress rFox rewards distribution',
+        description: 'Start here to recover an rFOX rewards distribution.',
+      },
+      {
+        name: 'Update rFOX metadata',
+        value: 'update',
+        description: 'Start here to update an rFOX metadata.',
       },
     ],
   })
@@ -211,6 +246,8 @@ const main = async () => {
       return run()
     case 'recover':
       return recover()
+    case 'update':
+      return update()
     default:
       error(`Invalid choice: ${choice}, exiting.`)
       process.exit(1)

@@ -70,7 +70,7 @@ export class Wallet {
     }
   }
 
-  private async buildFundingTransaction(amount: string, epoch: number) {
+  private async buildFundingTransaction(amount: string, epoch: Epoch, hash: string) {
     const { address } = await this.getAddress()
 
     return {
@@ -88,7 +88,7 @@ export class Wallet {
             ],
           },
         ],
-        memo: `Fund rFOX rewards distribution - Epoch #${epoch}`,
+        memo: `Fund rFOX rewards distribution - Epoch #${epoch.number} (IPFS Hash: ${hash})`,
         timeout_height: '0',
         extension_options: [],
         non_critical_extension_options: [],
@@ -106,7 +106,7 @@ export class Wallet {
     }
   }
 
-  async fund(epoch: Epoch) {
+  async fund(epoch: Epoch, epochHash: string) {
     const { address } = await this.getAddress()
 
     const distributions = Object.values(epoch.distributionsByStakingAddress)
@@ -152,7 +152,7 @@ export class Wallet {
 
     if (await isFunded()) return
 
-    const unsignedTx = await this.buildFundingTransaction(totalAmount, epoch.number)
+    const unsignedTx = await this.buildFundingTransaction(totalAmount, epoch, epochHash)
     const unsignedTxFile = path.join(RFOX_DIR, `unsignedTx_epoch-${epoch.number}.json`)
 
     write(unsignedTxFile, JSON.stringify(unsignedTx, null, 2))
@@ -173,7 +173,7 @@ export class Wallet {
     })()
   }
 
-  private async signTransactions(epoch: Epoch): Promise<TxsByStakingAddress> {
+  private async signTransactions(epoch: Epoch, epochHash: string): Promise<TxsByStakingAddress> {
     const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
     const txs = read(txsFile)
 
@@ -230,7 +230,7 @@ export class Wallet {
                 amount: [],
                 gas: '0',
               },
-              memo: `rFOX reward (Staking Address: ${stakingAddress}) - Epoch #${epoch.number}`,
+              memo: `rFOX reward (Staking Address: ${stakingAddress}) - Epoch #${epoch.number} (IPFS Hash: ${epochHash})`,
               signatures: [],
             },
           }
@@ -330,8 +330,8 @@ export class Wallet {
     return epoch
   }
 
-  async distribute(epoch: Epoch): Promise<Epoch> {
-    const txsByStakingAddress = await this.signTransactions(epoch)
+  async distribute(epoch: Epoch, epochHash: string): Promise<Epoch> {
+    const txsByStakingAddress = await this.signTransactions(epoch, epochHash)
     return this.broadcastTransactions(epoch, txsByStakingAddress)
   }
 }

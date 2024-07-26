@@ -1,6 +1,6 @@
 import * as prompts from '@inquirer/prompts'
 import PinataClient from '@pinata/sdk'
-import axios from 'axios'
+import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import { error, info } from './logging'
 import { Epoch, RFOXMetadata, RewardDistribution } from './types'
@@ -132,8 +132,15 @@ export class IPFS {
         error(`The contents of IPFS hash (${hash}) are not valid epoch contents, exiting.`)
         process.exit(1)
       }
-    } catch {
-      error(`Failed to get content of IPFS hash (${hash}), exiting.`)
+    } catch (err) {
+      if (isAxiosError(err)) {
+        error(
+          `Failed to get content of IPFS hash (${hash}): ${err.request?.data?.message || err.response?.data?.message || err.message}, exiting.`,
+        )
+      } else {
+        error(`Failed to get content of IPFS hash (${hash}): ${err}, exiting.`)
+      }
+
       process.exit(1)
     }
   }
@@ -290,8 +297,15 @@ export class IPFS {
 
       error(`The contents of IPFS hash (${hash}) are not valid metadata contents, exiting.`)
       process.exit(1)
-    } catch {
-      error(`Failed to get content of IPFS hash (${hash}), exiting.`)
+    } catch (err) {
+      if (isAxiosError(err)) {
+        error(
+          `Failed to get content of IPFS hash (${hash}): ${err.request?.data || err.response?.data || err.message}, exiting.`,
+        )
+      } else {
+        error(`Failed to get content of IPFS hash (${hash}): ${err}, exiting.`)
+      }
+
       process.exit(1)
     }
   }

@@ -135,7 +135,7 @@ export class Wallet {
         resolve && resolve()
 
         return true
-      } catch (err: any) {
+      } catch (err) {
         spinner?.fail()
 
         if (isAxiosError(err)) {

@@ -22,6 +22,7 @@ const processEpoch = async () => {
   const month = MONTHS[new Date(metadata.epochStartTimestamp).getUTCMonth()]
 
   info(`Processing rFOX Epoch #${metadata.epoch} for ${month} distribution.`)
+
   const now = Date.now()
   if (metadata.epochEndTimestamp > now) {
     const daysRemaining = Math.round((metadata.epochEndTimestamp - now) / (24 * 60 * 60 * 1000))

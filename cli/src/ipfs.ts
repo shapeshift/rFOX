@@ -132,8 +132,8 @@ export class IPFS {
         error(`The contents of IPFS hash (${hash}) are not valid epoch contents, exiting.`)
         process.exit(1)
       }
-    } catch {
-      error(`Failed to get content of IPFS hash (${hash}), exiting.`)
+    } catch (err) {
+      error(`Failed to get content of IPFS hash (${hash}), exiting. ${err}`)
       process.exit(1)
     }
   }
@@ -290,8 +290,8 @@ export class IPFS {
 
       error(`The contents of IPFS hash (${hash}) are not valid metadata contents, exiting.`)
       process.exit(1)
-    } catch {
-      error(`Failed to get content of IPFS hash (${hash}), exiting.`)
+    } catch (err) {
+      error(`Failed to get content of IPFS hash (${hash}), exiting. ${err}`)
       process.exit(1)
     }
   }

@@ -11,10 +11,10 @@
 ```bash
 git clone https://gitlab.com/thorchain/thornode.git
 cd thornode
-git checkout develop
+git fetch origin
+git checkout {current_version}
 git pull
-cd cmd/thornode
-go build --tags cgo,ledger
+TAG=mainnet,cgo,ledger make install
 ```
 
 ## Create MultiSig
@@ -27,7 +27,7 @@ go build --tags cgo,ledger
   ```bash
   ./thornode keys show {person1} --pubkey
   ```
-- Import signer pubkeys:
+- Import signer pubkeys (ex. `'{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"someKeyValue}'`):
   ```bash
   ./thornode keys add {person2} --pubkey '{person2_pubkey}'
   ./thornode keys add {person3} --pubkey '{person3_pubkey}'

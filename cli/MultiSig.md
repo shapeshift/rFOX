@@ -62,14 +62,6 @@ TAG=mainnet,cgo,ledger make install
 
 ## Send Transaction
 
-- Simulate transaction:
-
-  ```bash
-  ./thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --dry-run > ~/rfox/simulatedTx_epoch-{N}.json
-  ```
-
-  - Validate contents of `simulatedTx.json` for accuracy before broadcasting
-
 - Broadcast transaction:
   ```bash
   ./thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json

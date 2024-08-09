@@ -2,16 +2,28 @@ import 'dotenv/config'
 import * as prompts from '@inquirer/prompts'
 import BigNumber from 'bignumber.js'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import ora from 'ora'
 import { Client } from './client'
-import { MONTHS, RFOX_DIR } from './constants'
+import { MONTHS } from './constants'
 import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
 import { create, recoverKeystore } from './mnemonic'
 import { Epoch, RFOXMetadata } from './types'
 import { Wallet } from './wallet'
+import { Command } from 'commander'
+
+const program = new Command()
+
+program.name('rFOX CLI')
+program.description('Here to help you do all things rFOX')
+program.option('--rfoxDir <path>', 'path to rfox directory', '~/rfox')
+program.parse(process.argv)
+
+const options = program.opts()
+export const RFOX_DIR = options.rfoxDir.replace(/^~(?=$|\/|\\)/, os.homedir())
 
 const processEpoch = async () => {
   const ipfs = await IPFS.new()

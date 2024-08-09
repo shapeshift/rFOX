@@ -5,10 +5,10 @@ import chalk from 'chalk'
 import symbols from 'log-symbols'
 import path from 'node:path'
 import ora, { Ora } from 'ora'
-import { RFOX_DIR } from './constants'
 import { read, write } from './file'
 import { error, info, success } from './logging'
 import { Epoch } from './types'
+import { RFOX_DIR } from '.'
 
 const BIP32_PATH = `m/44'/931'/0'/0/0`
 const SHAPESHIFT_MULTISIG_ADDRESS = 'thor1xmaggkcln5m5fnha2780xrdrulmplvfrz6wj3l'

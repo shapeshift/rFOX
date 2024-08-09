@@ -21,50 +21,50 @@ TAG=mainnet,cgo,ledger make install
 
 - Add your key:
   ```bash
-  ./thornode keys add {person1} --ledger
+  thornode keys add {person1} --ledger
   ```
 - Export pubkey:
   ```bash
-  ./thornode keys show {person1} --pubkey
+  thornode keys show {person1} --pubkey
   ```
 - Import signer pubkeys (ex. `'{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"someKeyValue}'`):
   ```bash
-  ./thornode keys add {person2} --pubkey '{person2_pubkey}'
-  ./thornode keys add {person3} --pubkey '{person3_pubkey}'
+  thornode keys add {person2} --pubkey '{person2_pubkey}'
+  thornode keys add {person3} --pubkey '{person3_pubkey}'
   ```
 - View keys:
   ```bash
-  ./thornode keys list
+  thornode keys list
   ```
 - Add multisig key:
   ```bash
-  ./thornode keys add multisig --multisig {person1},{person2},{person3} --multisig-threshold 2
+  thornode keys add multisig --multisig {person1},{person2},{person3} --multisig-threshold 2
   ```
 - Validate multisig address:
   ```bash
-  ./thornode keys show multisig --address
+  thornode keys show multisig --address
   ```
 
 ## Sign Transaction
 
 - Person 1 signs:
   ```bash
-  ./thornode tx sign --from {person1} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person1}.json
+  thornode tx sign --from {person1} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person1}.json
   ```
 - Person 2 signs:
   ```bash
-  ./thornode tx sign --from {person2} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person2}.json
+  thornode tx sign --from {person2} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person2}.json
   ```
 - Multisign:
   ```bash
-  ./thornode tx multisign ~/rfox/unsignedTx_epoch-{N}.json multisig ~/rfox/signedTx_epoch-{N}_{person1}.json ~/rfox/signedTx_epoch-{N}_{person2}.json --from multisig --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc > ~/rfox/signedTx_epoch-{N}_multisig.json
+  thornode tx multisign ~/rfox/unsignedTx_epoch-{N}.json multisig ~/rfox/signedTx_epoch-{N}_{person1}.json ~/rfox/signedTx_epoch-{N}_{person2}.json --from multisig --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc > ~/rfox/signedTx_epoch-{N}_multisig.json
   ```
 
 ## Send Transaction
 
 - Broadcast transaction:
   ```bash
-  ./thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
+  thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
   ```
 
 At this point, the cli should pick up the funding transaction and continue running the distribution from the hot wallet.

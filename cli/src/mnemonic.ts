@@ -2,9 +2,9 @@ import * as prompts from '@inquirer/prompts'
 import { generateMnemonic, validateMnemonic } from 'bip39'
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { RFOX_DIR } from './constants'
 import { read, write } from './file'
 import { error, info, success, warn } from './logging'
+import { RFOX_DIR } from '.'
 
 const recoveryChoices = [
   {

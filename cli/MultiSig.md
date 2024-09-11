@@ -49,22 +49,22 @@ TAG=mainnet,cgo,ledger make install
 
 - Person 1 signs:
   ```bash
-  thornode tx sign --from {person1} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person1}.json
+  thornode tx sign --from {person1} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person1}.json
   ```
 - Person 2 signs:
   ```bash
-  thornode tx sign --from {person2} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person2}.json
+  thornode tx sign --from {person2} --multisig multisig ~/rfox/unsignedTx_epoch-{N}.json --chain-id thorchain-1 --node https://daemon.thorchain.shapeshift.com:443/rpc --ledger --sign-mode amino-json > ~/rfox/signedTx_epoch-{N}_{person2}.json
   ```
 - Multisign:
   ```bash
-  thornode tx multisign ~/rfox/unsignedTx_epoch-{N}.json multisig ~/rfox/signedTx_epoch-{N}_{person1}.json ~/rfox/signedTx_epoch-{N}_{person2}.json --from multisig --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc > ~/rfox/signedTx_epoch-{N}_multisig.json
+  thornode tx multisign ~/rfox/unsignedTx_epoch-{N}.json multisig ~/rfox/signedTx_epoch-{N}_{person1}.json ~/rfox/signedTx_epoch-{N}_{person2}.json --from multisig --chain-id thorchain-1 --node https://daemon.thorchain.shapeshift.com:443/rpc > ~/rfox/signedTx_epoch-{N}_multisig.json
   ```
 
 ## Send Transaction
 
 - Broadcast transaction:
   ```bash
-  thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-mainnet-v1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
+  thornode tx broadcast ~/rfox/signedTx_epoch-{N}_multisig.json --chain-id thorchain-1 --node https://daemon.thorchain.shapeshift.com:443/rpc --gas auto > tx.json
   ```
 
 At this point, the cli should pick up the funding transaction and continue running the distribution from the hot wallet.

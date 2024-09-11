@@ -1150,7 +1150,19 @@
     web-encoding "^1.1.0"
     wif "^2.0.6"
 
-"@shapeshiftoss/hdwallet-core@1.54.0", "@shapeshiftoss/hdwallet-core@^1.54.0", "@shapeshiftoss/hdwallet-core@latest":
+"@shapeshiftoss/hdwallet-core@1.55.1", "@shapeshiftoss/hdwallet-core@^1.55.1":
+  version "1.55.1"
+  resolved "https://registry.yarnpkg.com/@shapeshiftoss/hdwallet-core/-/hdwallet-core-1.55.1.tgz#2369e47467e3e4e483352cea14d4f7744b928ba7"
+  integrity sha512-1aZbK+Eo9TqOeNk3x0bA/wRna1qV+QFXXyC6A75z4kzqbshFnogBlrD+71GlbzQYmB4d2JYhxouZ8HjA1kZnFw==
+  dependencies:
+    "@shapeshiftoss/proto-tx-builder" "^0.8.0"
+    eip-712 "^1.0.0"
+    eventemitter2 "^5.0.1"
+    lodash "^4.17.21"
+    rxjs "^6.4.0"
+    type-assertions "^1.1.0"
+
+"@shapeshiftoss/hdwallet-core@latest":
   version "1.54.0"
   resolved "https://registry.yarnpkg.com/@shapeshiftoss/hdwallet-core/-/hdwallet-core-1.54.0.tgz#e9e04ea363662d1dbfc62fb87c91ea293bdef4a7"
   integrity sha512-86HWxMXjEd87/Iw//M3xd+I8uDRIgmIauubdXzY8HpHytV3H0a1IO5cfB3dfMClE6OVWndmKjKONwcSN8uYtUw==
@@ -1162,14 +1174,14 @@
     rxjs "^6.4.0"
     type-assertions "^1.1.0"
 
-"@shapeshiftoss/hdwallet-native@^1.54.0":
-  version "1.54.0"
-  resolved "https://registry.yarnpkg.com/@shapeshiftoss/hdwallet-native/-/hdwallet-native-1.54.0.tgz#a1ed16592018eb049bb6769425d8ef1a141941d1"
-  integrity sha512-ekGSduMQ2NHoLiNYwN2wCc+zra5ui6YKHFVb8Tw9hEgbsIT5CSpGJrzLKYDZXZKNBIB4/bzuESkhVYmaJ9D/fA==
+"@shapeshiftoss/hdwallet-native@^1.55.1":
+  version "1.55.1"
+  resolved "https://registry.yarnpkg.com/@shapeshiftoss/hdwallet-native/-/hdwallet-native-1.55.1.tgz#6434c0b6cae6c60d770ab2c9cd93f3ba56fdcd1f"
+  integrity sha512-bpkX7Wpm3J93l119Crr6JEBAhfOqrB0y+FyslOTBm/aH1EBekTWH7rGaWRGe2CkOU5T817t31diow7nqzt9FUA==
   dependencies:
     "@shapeshiftoss/bitcoinjs-lib" "5.2.0-shapeshift.2"
     "@shapeshiftoss/fiosdk" "1.2.1-shapeshift.6"
-    "@shapeshiftoss/hdwallet-core" "1.54.0"
+    "@shapeshiftoss/hdwallet-core" "1.55.1"
     "@shapeshiftoss/proto-tx-builder" "^0.8.0"
     "@zxing/text-encoding" "^0.9.0"
     bchaddrjs "^0.4.9"
@@ -1183,6 +1195,7 @@
     ethers "5.7.2"
     eventemitter2 "^5.0.1"
     funtypes "^3.0.1"
+    hash-wasm "^4.11.0"
     lodash "^4.17.21"
     node-fetch "^2.6.1"
     p-lazy "^3.1.0"

@@ -213,7 +213,7 @@ export class Wallet {
           const unsignedTx = {
             account_number: account.account_number,
             addressNList,
-            chain_id: 'thorchain-mainnet-v1',
+            chain_id: 'thorchain-1',
             sequence: String(Number(account.sequence) + i),
             tx: {
               msg: [
@@ -277,12 +277,10 @@ export class Wallet {
     const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
     const spinner = ora(`Broadcasting ${totalTxs} transactions...`).start()
 
-    try {
-      for await (const [stakingAddress, { signedTx, txId }] of Object.entries(txsByStakingAddress)) {
-        if (txId) {
-          epoch.distributionsByStakingAddress[stakingAddress].txId = txId
-          continue
-        }
+    const doBroadcast = async (stakingAddress: string, signedTx: string, retryAttempt = 0) => {
+      try {
+        // delay between broadcast attempts to allow for transactions to confirm on chain
+        await new Promise(resolve => setTimeout(resolve, 1000))
 
         const { data } = await axios.post<{ result: { code: number; data: string; log: string; hash: string } }>(
           `${THORNODE_URL}/rpc`,
@@ -295,15 +293,33 @@ export class Wallet {
         )
 
         if (!data.result.hash || data.result.code !== 0) {
-          spinner.suffixText = suffix(`Failed to broadcast transaction: ${data.result.data || data.result.log}.`)
-          break
+          if (retryAttempt >= 2) {
+            spinner.suffixText = suffix(`Failed to broadcast transaction: ${data.result.data || data.result.log}.`)
+            return
+          }
+
+          return doBroadcast(stakingAddress, signedTx, ++retryAttempt)
         }
+
+        return data
+      } catch (err) {
+        if (retryAttempt >= 2) throw err
+        return doBroadcast(stakingAddress, signedTx, ++retryAttempt)
+      }
+    }
+
+    try {
+      for await (const [stakingAddress, { signedTx, txId }] of Object.entries(txsByStakingAddress)) {
+        if (txId) {
+          epoch.distributionsByStakingAddress[stakingAddress].txId = txId
+          continue
+        }
+
+        const data = await doBroadcast(stakingAddress, signedTx)
+        if (!data) break
 
         txsByStakingAddress[stakingAddress].txId = data.result.hash
         epoch.distributionsByStakingAddress[stakingAddress].txId = data.result.hash
-
-        // wait for transaction to confirm before broadcasting next transaction (this ensures sequence is incremented before subsequent broadcast)
-        await new Promise(resolve => setTimeout(resolve, 1_000))
       }
     } catch (err) {
       if (isAxiosError(err)) {

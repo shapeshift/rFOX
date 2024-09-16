@@ -11,7 +11,7 @@ import { Epoch } from './types'
 import { RFOX_DIR } from '.'
 
 const BIP32_PATH = `m/44'/931'/0'/0/0`
-const SHAPESHIFT_MULTISIG_ADDRESS = 'thor1xmaggkcln5m5fnha2780xrdrulmplvfrz6wj3l'
+const SHAPESHIFT_MULTISIG_ADDRESS = 'thor1crs0y53jfg224mettqeg883e6ume49tllktg2s'
 const THORNODE_URL = 'https://daemon.thorchain.shapeshift.com'
 
 const addressNList = bip32ToAddressNList(BIP32_PATH)

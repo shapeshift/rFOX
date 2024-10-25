@@ -18,10 +18,22 @@ if (!INFURA_API_KEY) {
 
 const AVERAGE_BLOCK_TIME_BLOCKS = 1000
 const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS = '0xac2a4fd70bcd8bab0662960455c363735f0e2b56'
+const THORCHAIN_PRECISION = 8
 
 type Revenue = {
   address: string
   amount: string
+}
+
+type Pool = {
+  balance_asset: string
+  balance_rune: string
+  asset_tor_price: string
+}
+
+type Price = {
+  assetPriceUsd: string
+  runePriceUsd: string
 }
 
 type ClosingState = {
@@ -127,6 +139,36 @@ export class Client {
         )
       } else {
         error(`Failed to get revenue for period (start: ${startTimestamp} - end: ${endTimestamp}), exiting.`)
+      }
+
+      process.exit(1)
+    }
+  }
+
+  async getPrice(): Promise<Price> {
+    try {
+      const { data } = await axios.get<Pool>(
+        'https://daemon.thorchain.shapeshift.com/lcd/thorchain/pool/ETH.FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D',
+      )
+
+      const runeInAsset = new BigNumber(data.balance_asset).div(data.balance_rune)
+      const assetPriceUsd = new BigNumber(data.asset_tor_price)
+        .div(new BigNumber(10).pow(THORCHAIN_PRECISION))
+        .toFixed(THORCHAIN_PRECISION)
+      const runePriceUsd = runeInAsset.times(assetPriceUsd).toFixed(THORCHAIN_PRECISION)
+
+      info(`Current asset price (USD): ${assetPriceUsd}`)
+      info(`Current rune price (USD): ${runePriceUsd}`)
+
+      return {
+        assetPriceUsd,
+        runePriceUsd,
+      }
+    } catch (err) {
+      if (isAxiosError(err)) {
+        error(`Failed to get price: ${err.message}, exiting.`)
+      } else {
+        error('Failed to get price, exiting.')
       }
 
       process.exit(1)

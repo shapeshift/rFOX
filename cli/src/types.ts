@@ -81,6 +81,10 @@ export type Epoch = {
   distributionRate: number
   /** The percentage of revenue (RUNE) accumulated by the treasury to be used to buy FOX from the open market and subsequently burned for this epoch */
   burnRate: number
+  /** The spot price of asset in USD */
+  assetPriceUsd: string
+  /** The spot price of rune in USD */
+  runePriceUsd: string
   /** The treasury address on THORChain used to determine revenue earned by the DAO for rFOX reward distributions and total burn */
   treasuryAddress: string
   /** The status of the reward distribution */

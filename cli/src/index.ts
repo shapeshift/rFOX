@@ -83,6 +83,8 @@ const processEpoch = async () => {
     totalDistribution,
   )
 
+  const { assetPriceUsd, runePriceUsd } = await client.getPrice()
+
   const epochHash = await ipfs.addEpoch({
     number: metadata.epoch,
     startTimestamp: metadata.epochStartTimestamp,
@@ -93,6 +95,8 @@ const processEpoch = async () => {
     totalRewardUnits,
     distributionRate: metadata.distributionRate,
     burnRate: metadata.burnRate,
+    assetPriceUsd,
+    runePriceUsd,
     treasuryAddress: metadata.treasuryAddress,
     distributionStatus: 'pending',
     distributionsByStakingAddress,
@@ -192,13 +196,19 @@ const update = async () => {
 }
 
 const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
+  const client = await Client.new()
+
   const epochHash = metadata.ipfsHashByEpoch[epoch.number]
 
   await wallet.fund(epoch, epochHash)
   const processedEpoch = await wallet.distribute(epoch, epochHash)
 
+  const { assetPriceUsd, runePriceUsd } = await client.getPrice()
+
   const processedEpochHash = await ipfs.addEpoch({
     ...processedEpoch,
+    assetPriceUsd,
+    runePriceUsd,
     distributionStatus: 'complete',
   })
 

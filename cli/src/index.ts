@@ -45,7 +45,7 @@ const processEpoch = async () => {
   const revenue = await client.getRevenue(metadata.epochStartTimestamp, metadata.epochEndTimestamp)
 
   info(
-    `Total ${month} revenue earned by ${revenue.address}: ${BigNumber(revenue.amount).div(100000000).toFixed(8)} RUNE`,
+    `Total ${month} revenue earned by ${revenue.addresses}: ${BigNumber(revenue.amount).div(100000000).toFixed(8)} RUNE`,
   )
 
   info(`Share of total revenue to be distributed as rewards: ${metadata.distributionRate * 100}%`)

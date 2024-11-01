@@ -21,7 +21,7 @@ const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS = '0xac2a4fd70bcd8bab0662960455c36373
 const THORCHAIN_PRECISION = 8
 
 type Revenue = {
-  address: string
+  addresses: string[]
   amount: string
 }
 

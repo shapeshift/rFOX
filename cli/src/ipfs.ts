@@ -3,8 +3,9 @@ import PinataClient from '@pinata/sdk'
 import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import { error, info } from './logging'
-import { Epoch, RFOXMetadata, RewardDistribution } from './types'
+import { Epoch, EpochDetails, RFOXMetadata, RewardDistribution } from './types'
 import { MONTHS } from './constants'
+import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX } from './client'
 
 const PINATA_API_KEY = process.env['PINATA_API_KEY']
 const PINATA_SECRET_API_KEY = process.env['PINATA_SECRET_API_KEY']
@@ -31,40 +32,68 @@ if (!PINATA_GATEWAY_API_KEY) {
   process.exit(1)
 }
 
-const isMetadata = (obj: any): obj is RFOXMetadata =>
-  obj &&
-  typeof obj === 'object' &&
-  typeof obj.epoch === 'number' &&
-  typeof obj.epochStartTimestamp === 'number' &&
-  typeof obj.epochEndTimestamp === 'number' &&
-  typeof obj.distributionRate === 'number' &&
-  typeof obj.burnRate === 'number' &&
-  typeof obj.treasuryAddress === 'string' &&
-  typeof obj.ipfsHashByEpoch === 'object' &&
-  Object.values(obj.ipfsHashByEpoch ?? {}).every(value => typeof value === 'string')
+const isMetadata = (obj: any): obj is RFOXMetadata => {
+  return (
+    obj !== null &&
+    typeof obj === 'object' &&
+    typeof obj.epoch === 'number' &&
+    typeof obj.epochStartTimestamp === 'number' &&
+    typeof obj.epochEndTimestamp === 'number' &&
+    typeof obj.treasuryAddress === 'string' &&
+    Boolean(obj.treasuryAddress) &&
+    typeof obj.burnRate === 'number' &&
+    obj.distributionRateByStakingContract !== null &&
+    typeof obj.distributionRateByStakingContract === 'object' &&
+    Object.values(obj.distributionRateByStakingContract).every(value => typeof value === 'number') &&
+    obj.ipfsHashByEpoch !== null &&
+    typeof obj.ipfsHashByEpoch === 'object' &&
+    Object.values(obj.ipfsHashByEpoch).every(value => typeof value === 'string' && Boolean(value))
+  )
+}
 
-const isEpoch = (obj: any): obj is Epoch =>
-  obj &&
-  typeof obj === 'object' &&
-  typeof obj.number === 'number' &&
-  typeof obj.startTimestamp === 'number' &&
-  typeof obj.endTimestamp === 'number' &&
-  typeof obj.startBlock === 'number' &&
-  typeof obj.endBlock === 'number' &&
-  typeof obj.totalRevenue === 'string' &&
-  typeof obj.totalRewardUnits === 'string' &&
-  typeof obj.distributionRate === 'number' &&
-  typeof obj.burnRate === 'number' &&
-  typeof obj.distributionsByStakingAddress === 'object' &&
-  Object.values(obj.distributionsByStakingAddress ?? {}).every(isRewardDistribution)
+const isEpoch = (obj: any): obj is Epoch => {
+  return (
+    obj !== null &&
+    typeof obj === 'object' &&
+    typeof obj.number === 'number' &&
+    typeof obj.startTimestamp === 'number' &&
+    typeof obj.endTimestamp === 'number' &&
+    typeof obj.startBlock === 'number' &&
+    typeof obj.endBlock === 'number' &&
+    typeof obj.treasuryAddress === 'string' &&
+    Boolean(obj.treasuryAddress) &&
+    typeof obj.totalRevenue === 'string' &&
+    Boolean(obj.totalRevenue) &&
+    typeof obj.burnRate === 'number' &&
+    (obj.distributionStatus === 'pending' || obj.distributionStatus === 'complete') &&
+    obj.detailsByStakingContract !== null &&
+    typeof obj.detailsByStakingContract === 'object' &&
+    Object.values(obj.detailsByStakingContract).every(isEpochDetails)
+  )
+}
 
-const isRewardDistribution = (obj: any): obj is RewardDistribution =>
-  obj &&
-  typeof obj === 'object' &&
-  typeof obj.amount === 'string' &&
-  typeof obj.rewardUnits === 'string' &&
-  typeof obj.txId === 'string' &&
-  typeof obj.rewardAddress === 'string'
+export function isEpochDetails(obj: any): obj is EpochDetails {
+  return (
+    obj !== null &&
+    typeof obj === 'object' &&
+    typeof obj.totalRewardUnits === 'string' &&
+    typeof obj.distributionRate === 'number' &&
+    obj.distributionsByStakingAddress !== null &&
+    typeof obj.distributionsByStakingAddress === 'object' &&
+    Object.values(obj.distributionsByStakingAddress).every(isRewardDistribution)
+  )
+}
+
+const isRewardDistribution = (obj: any): obj is RewardDistribution => {
+  return (
+    obj !== null &&
+    typeof obj === 'object' &&
+    typeof obj.amount === 'string' &&
+    typeof obj.rewardUnits === 'string' &&
+    typeof obj.txId === 'string' &&
+    typeof obj.rewardAddress === 'string'
+  )
+}
 
 export class IPFS {
   private client: PinataClient
@@ -115,13 +144,17 @@ export class IPFS {
 
       if (isEpoch(data)) {
         const month = MONTHS[new Date(data.startTimestamp).getUTCMonth()]
-        const totalAddresses = Object.keys(data.distributionsByStakingAddress).length
-        const totalRewards = Object.values(data.distributionsByStakingAddress)
-          .reduce((prev, distribution) => {
-            return prev.plus(distribution.amount)
-          }, BigNumber(0))
-          .div(100000000)
-          .toFixed()
+
+        const distributions = Object.values(data.detailsByStakingContract).flatMap(details =>
+          Object.values(details.distributionsByStakingAddress),
+        )
+
+        const totalDistributionAmount = distributions.reduce((prev, distribution) => {
+          return prev.plus(distribution.amount)
+        }, BigNumber(0))
+
+        const totalRewards = totalDistributionAmount.div(100000000).toFixed()
+        const totalAddresses = distributions.length
 
         info(
           `Running ${month} rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} RUNE\n    - Total Addresses: ${totalAddresses}`,
@@ -197,9 +230,17 @@ export class IPFS {
 
     switch (choice) {
       case 'distributionRate': {
+        const choice = await prompts.select({
+          message: 'What staking contract do you want to update',
+          choices: Object.keys(metadata.distributionRateByStakingContract).map(stakingContract => ({
+            name: stakingContract,
+            value: stakingContract,
+          })),
+        })
+
         const distributionRate = parseFloat(
           await prompts.input({
-            message: `The distribution rate is currently set to ${metadata.distributionRate}, what do you want to update it to? `,
+            message: `The distribution rate is currently set to ${metadata.distributionRateByStakingContract[choice]}, what do you want to update it to? `,
           }),
         )
 
@@ -208,7 +249,7 @@ export class IPFS {
           return this.updateMetadata(metadata)
         }
 
-        metadata.distributionRate = distributionRate
+        metadata.distributionRateByStakingContract[choice] = distributionRate
 
         break
       }
@@ -254,7 +295,14 @@ export class IPFS {
     if (confirmed) {
       return this.updateMetadata(metadata)
     } else {
-      if (metadata.distributionRate + metadata.burnRate > 1) {
+      const totalDistributionRate = Object.values(metadata.distributionRateByStakingContract).reduce(
+        (prev, distributionRate) => {
+          return prev + distributionRate
+        },
+        0,
+      )
+
+      if (totalDistributionRate + metadata.burnRate > 1) {
         error(
           `Invalid rates, the sum of the distribution rate and burn rate must be a number between 0 and 1 (ex. 0.5).`,
         )
@@ -262,7 +310,7 @@ export class IPFS {
       }
 
       info(
-        `The new metadata values will be:\n    - Distribtution Rate: ${metadata.distributionRate}\n    - Burn Rate: ${metadata.burnRate}\n    - Treasury Address: ${metadata.treasuryAddress}`,
+        `The new metadata values will be:\n    - Distribtution Rates: ${JSON.stringify(metadata.distributionRateByStakingContract)}\n    - Burn Rate: ${metadata.burnRate}\n    - Treasury Address: ${metadata.treasuryAddress}`,
       )
 
       const confirmed = await prompts.confirm({
@@ -331,5 +379,87 @@ export class IPFS {
     }
 
     return epoch
+  }
+
+  async migrate(): Promise<RFOXMetadata> {
+    const metadataHash = await prompts.input({
+      message: `What is the IPFS hash for the rFOX metadata you want to migrate? `,
+    })
+
+    try {
+      const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${metadataHash}`, {
+        headers: {
+          'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
+        },
+      })
+
+      const metadata = ((): RFOXMetadata => {
+        if (isMetadata(data)) return data
+
+        return {
+          epoch: data.epoch,
+          epochStartTimestamp: data.epochStartTimestamp,
+          epochEndTimestamp: data.epochEndTimestamp,
+          treasuryAddress: data.treasuryAddress,
+          burnRate: data.burnRate,
+          distributionRateByStakingContract: {
+            [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: data.distributionRate,
+          },
+          ipfsHashByEpoch: {},
+        }
+      })()
+
+      for (const [epochNum, epochHash] of Object.entries(data.ipfsHashByEpoch)) {
+        const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${epochHash}`, {
+          headers: {
+            'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
+          },
+        })
+
+        if (isEpoch(data)) {
+          metadata.ipfsHashByEpoch[epochNum] = epochHash as string
+          continue
+        }
+
+        const epoch: Epoch = {
+          number: data.number,
+          startTimestamp: data.startTimestamp,
+          endTimestamp: data.endTimestamp,
+          startBlock: data.startBlock,
+          endBlock: data.endBlock,
+          treasuryAddress: data.treasuryAddress,
+          totalRevenue: data.totalRevenue,
+          burnRate: data.burnRate,
+          ...(data.runePriceUsd && {
+            runePriceUsd: data.runePriceUsd,
+          }),
+          distributionStatus: data.distributionStatus,
+          detailsByStakingContract: {
+            [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: {
+              totalRewardUnits: data.totalRewardUnits,
+              distributionRate: data.distributionRate,
+              ...(data.assetPriceUsd && {
+                assetPriceUsd: data.assetPriceUsd,
+              }),
+              distributionsByStakingAddress: data.distributionsByStakingAddress,
+            },
+          },
+        }
+
+        metadata.ipfsHashByEpoch[epochNum] = await this.addEpoch(epoch)
+      }
+
+      return metadata
+    } catch (err) {
+      if (isAxiosError(err)) {
+        error(
+          `Failed to get content of IPFS hash (${metadataHash}): ${err.request?.data || err.response?.data || err.message}, exiting.`,
+        )
+      } else {
+        error(`Failed to get content of IPFS hash (${metadataHash}): ${err}, exiting.`)
+      }
+
+      process.exit(1)
+    }
   }
 }

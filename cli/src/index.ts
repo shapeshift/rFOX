@@ -5,13 +5,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import ora from 'ora'
-import { Client } from './client'
+import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX, Client, stakingContracts } from './client'
 import { MONTHS } from './constants'
 import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
 import { create, recoverKeystore } from './mnemonic'
-import { Epoch, RFOXMetadata } from './types'
+import { Epoch, EpochDetails, RFOXMetadata } from './types'
 import { Wallet } from './wallet'
 import { Command } from 'commander'
 
@@ -48,12 +48,27 @@ const processEpoch = async () => {
     `Total ${month} revenue earned by ${revenue.addresses}: ${BigNumber(revenue.amount).div(100000000).toFixed(8)} RUNE`,
   )
 
-  info(`Share of total revenue to be distributed as rewards: ${metadata.distributionRate * 100}%`)
-  info(`Share of total revenue to buy back fox and burn: ${metadata.burnRate * 100}%`)
+  const totalDistributionRate = Object.entries(metadata.distributionRateByStakingContract).reduce(
+    (prev, [stakingContract, distributionRate]) => {
+      info(
+        `Share of total revenue to be distributed as rewards for staking contract: ${stakingContract}: ${distributionRate * 100}%`,
+      )
+      const totalDistribution = BigNumber(BigNumber(revenue.amount).times(distributionRate).toFixed(0))
+      info(
+        `Total rewards to be distributed for staking contract: ${stakingContract}: ${totalDistribution.div(100000000).toFixed()} RUNE`,
+      )
+      return prev + distributionRate
+    },
+    0,
+  )
 
-  const totalDistribution = BigNumber(BigNumber(revenue.amount).times(metadata.distributionRate).toFixed(0))
-
+  info(`Share of total revenue to be distributed as rewards: ${totalDistributionRate * 100}%`)
+  const totalDistribution = BigNumber(BigNumber(revenue.amount).times(totalDistributionRate).toFixed(0))
   info(`Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`)
+
+  info(`Share of total revenue to buy back fox and burn: ${metadata.burnRate * 100}%`)
+  const totalBurn = BigNumber(BigNumber(revenue.amount).times(metadata.burnRate).toFixed(0))
+  info(`Total amount to be used to buy back fox and burn: ${totalBurn.div(100000000).toFixed()} RUNE`)
 
   const spinner = ora('Detecting epoch start and end blocks...').start()
 
@@ -76,14 +91,28 @@ const processEpoch = async () => {
 
   const secondsInEpoch = BigInt(Math.floor((metadata.epochEndTimestamp - metadata.epochStartTimestamp) / 1000))
 
-  const { totalRewardUnits, distributionsByStakingAddress } = await client.calculateRewards(
-    startBlock,
-    endBlock,
-    secondsInEpoch,
-    totalDistribution,
-  )
-
   const { assetPriceUsd, runePriceUsd } = await client.getPrice()
+
+  const detailsByStakingContract: Record<string, EpochDetails> = {}
+  for (const stakingContract of stakingContracts) {
+    const distributionRate = metadata.distributionRateByStakingContract[stakingContract]
+
+    const { totalRewardUnits, distributionsByStakingAddress } = await client.calculateRewards({
+      stakingContract,
+      startBlock,
+      endBlock,
+      secondsInEpoch,
+      distributionRate,
+      totalRevenue: revenue.amount,
+    })
+
+    detailsByStakingContract[stakingContract] = {
+      assetPriceUsd,
+      distributionRate,
+      distributionsByStakingAddress,
+      totalRewardUnits,
+    }
+  }
 
   const epochHash = await ipfs.addEpoch({
     number: metadata.epoch,
@@ -91,15 +120,12 @@ const processEpoch = async () => {
     endTimestamp: metadata.epochEndTimestamp,
     startBlock: Number(startBlock),
     endBlock: Number(endBlock),
-    totalRevenue: revenue.amount,
-    totalRewardUnits,
-    distributionRate: metadata.distributionRate,
-    burnRate: metadata.burnRate,
-    assetPriceUsd,
-    runePriceUsd,
     treasuryAddress: metadata.treasuryAddress,
+    totalRevenue: revenue.amount,
+    burnRate: metadata.burnRate,
+    runePriceUsd,
     distributionStatus: 'pending',
-    distributionsByStakingAddress,
+    detailsByStakingContract,
   })
 
   const nextEpochStartDate = new Date(metadata.epochEndTimestamp + 1)
@@ -195,6 +221,24 @@ const update = async () => {
   )
 }
 
+const migrate = async () => {
+  const ipfs = await IPFS.new()
+
+  const metadata = await ipfs.migrate()
+  const hash = await ipfs.updateMetadata(metadata)
+
+  if (!hash) return
+
+  success(`rFOX metadata has been updated!`)
+
+  info(
+    'Please update the rFOX Wiki (https://github.com/shapeshift/rFOX/wiki/rFOX-Metadata) and notify the DAO accordingly. Thanks!',
+  )
+  warn(
+    'Important: CURRENT_EPOCH_METADATA_IPFS_HASH must be updated in web (https://github.com/shapeshift/web/blob/develop/src/pages/RFOX/constants.ts).',
+  )
+}
+
 const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
   const client = await Client.new()
 
@@ -205,12 +249,11 @@ const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet:
 
   const { assetPriceUsd, runePriceUsd } = await client.getPrice()
 
-  const processedEpochHash = await ipfs.addEpoch({
-    ...processedEpoch,
-    assetPriceUsd,
-    runePriceUsd,
-    distributionStatus: 'complete',
-  })
+  processedEpoch.runePriceUsd = runePriceUsd
+  processedEpoch.distributionStatus = 'complete'
+  processedEpoch.detailsByStakingContract[ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX].assetPriceUsd = assetPriceUsd
+
+  const processedEpochHash = await ipfs.addEpoch(processedEpoch)
 
   const metadataHash = await ipfs.updateMetadata(metadata, {
     epoch: { number: processedEpoch.number, hash: processedEpochHash },
@@ -241,7 +284,7 @@ const main = async () => {
     }
   }
 
-  const choice = await prompts.select<'process' | 'run' | 'recover' | 'update'>({
+  const choice = await prompts.select<'process' | 'run' | 'recover' | 'update' | 'migrate'>({
     message: 'What do you want to do?',
     choices: [
       {
@@ -264,6 +307,11 @@ const main = async () => {
         value: 'update',
         description: 'Start here to update an rFOX metadata.',
       },
+      {
+        name: 'Migrate rFOX metadata',
+        value: 'migrate',
+        description: 'Start here to migrate an existing rFOX metadata to the new format.',
+      },
     ],
   })
 
@@ -276,6 +324,8 @@ const main = async () => {
       return recover()
     case 'update':
       return update()
+    case 'migrate':
+      return migrate()
     default:
       error(`Invalid choice: ${choice}, exiting.`)
       process.exit(1)

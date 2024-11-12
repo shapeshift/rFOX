@@ -17,6 +17,7 @@ const THORNODE_URL = 'https://daemon.thorchain.shapeshift.com'
 const addressNList = bip32ToAddressNList(BIP32_PATH)
 
 type TxsByStakingAddress = Record<string, { signedTx: string; txId: string }>
+type TxsByStakingContract = Record<string, TxsByStakingAddress>
 
 const suffix = (text: string): string => {
   return `\n${symbols.error} ${chalk.bold.red(text)}`
@@ -109,7 +110,9 @@ export class Wallet {
   async fund(epoch: Epoch, epochHash: string) {
     const { address } = await this.getAddress()
 
-    const distributions = Object.values(epoch.distributionsByStakingAddress)
+    const distributions = Object.values(epoch.detailsByStakingContract).flatMap(details =>
+      Object.values(details.distributionsByStakingAddress),
+    )
 
     const totalDistribution = distributions.reduce((prev, distribution) => {
       return prev + BigInt(distribution.amount)
@@ -173,15 +176,19 @@ export class Wallet {
     })()
   }
 
-  private async signTransactions(epoch: Epoch, epochHash: string): Promise<TxsByStakingAddress> {
+  private async signTransactions(epoch: Epoch, epochHash: string): Promise<TxsByStakingContract> {
     const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
     const txs = read(txsFile)
 
-    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
+    const distributions = Object.values(epoch.detailsByStakingContract).flatMap(details =>
+      Object.values(details.distributionsByStakingAddress),
+    )
+
+    const totalTxs = distributions.length
     const spinner = ora(`Signing ${totalTxs} transactions...`).start()
 
-    const txsByStakingAddress = await (async () => {
-      if (txs) return JSON.parse(txs) as TxsByStakingAddress
+    const txsByStakingContract = await (async () => {
+      if (txs) return JSON.parse(txs) as TxsByStakingContract
 
       const { address } = await this.getAddress()
 
@@ -207,48 +214,49 @@ export class Wallet {
       })()
 
       let i = 0
-      const txsByStakingAddress: TxsByStakingAddress = {}
+      const txsByStakingContract: TxsByStakingContract = {}
       try {
-        for await (const [stakingAddress, distribution] of Object.entries(epoch.distributionsByStakingAddress)) {
-          const unsignedTx = {
-            account_number: account.account_number,
-            addressNList,
-            chain_id: 'thorchain-1',
-            sequence: String(Number(account.sequence) + i),
-            tx: {
-              msg: [
-                {
-                  type: 'thorchain/MsgSend',
-                  value: {
-                    amount: [{ amount: distribution.amount, denom: 'rune' }],
-                    from_address: address,
-                    to_address: distribution.rewardAddress,
+        for (const [stakingContract, details] of Object.entries(epoch.detailsByStakingContract))
+          for (const [stakingAddress, distribution] of Object.entries(details.distributionsByStakingAddress)) {
+            const unsignedTx = {
+              account_number: account.account_number,
+              addressNList,
+              chain_id: 'thorchain-1',
+              sequence: String(Number(account.sequence) + i),
+              tx: {
+                msg: [
+                  {
+                    type: 'thorchain/MsgSend',
+                    value: {
+                      amount: [{ amount: distribution.amount, denom: 'rune' }],
+                      from_address: address,
+                      to_address: distribution.rewardAddress,
+                    },
                   },
+                ],
+                fee: {
+                  amount: [],
+                  gas: '0',
                 },
-              ],
-              fee: {
-                amount: [],
-                gas: '0',
+                memo: `rFOX reward (Staking Contract: ${stakingContract}, Staking Address: ${stakingAddress}) - Epoch #${epoch.number} (IPFS Hash: ${epochHash})`,
+                signatures: [],
               },
-              memo: `rFOX reward (Staking Address: ${stakingAddress}) - Epoch #${epoch.number} (IPFS Hash: ${epochHash})`,
-              signatures: [],
-            },
+            }
+
+            const signedTx = await this.hdwallet.thorchainSignTx(unsignedTx)
+
+            if (!signedTx?.serialized) {
+              spinner.suffixText = suffix('Failed to sign transaction.')
+              break
+            }
+
+            txsByStakingContract[stakingContract][stakingAddress] = {
+              signedTx: signedTx.serialized,
+              txId: '',
+            }
+
+            i++
           }
-
-          const signedTx = await this.hdwallet.thorchainSignTx(unsignedTx)
-
-          if (!signedTx?.serialized) {
-            spinner.suffixText = suffix('Failed to sign transaction.')
-            break
-          }
-
-          txsByStakingAddress[stakingAddress] = {
-            signedTx: signedTx.serialized,
-            txId: '',
-          }
-
-          i++
-        }
       } catch (err) {
         if (err instanceof Error) {
           spinner.suffixText = suffix(`Failed to sign transaction: ${err.message}.`)
@@ -257,24 +265,30 @@ export class Wallet {
         }
       }
 
-      return txsByStakingAddress
+      return txsByStakingContract
     })()
 
-    const processedTxs = Object.values(txsByStakingAddress).filter(tx => !!tx.signedTx).length
+    const processedTxs = Object.values(txsByStakingContract)
+      .flatMap(txsByStakingAddress => Object.values(txsByStakingAddress))
+      .filter(tx => !!tx.signedTx).length
 
     if (processedTxs !== totalTxs) {
       spinner.fail(`${processedTxs}/${totalTxs} transactions signed, exiting.`)
       process.exit(1)
     }
 
-    write(txsFile, JSON.stringify(txsByStakingAddress, null, 2))
+    write(txsFile, JSON.stringify(txsByStakingContract, null, 2))
     spinner.succeed(`${processedTxs}/${totalTxs} transactions signed.`)
 
-    return txsByStakingAddress
+    return txsByStakingContract
   }
 
-  async broadcastTransactions(epoch: Epoch, txsByStakingAddress: TxsByStakingAddress): Promise<Epoch> {
-    const totalTxs = Object.values(epoch.distributionsByStakingAddress).length
+  async broadcastTransactions(epoch: Epoch, txsByStakingContract: TxsByStakingContract): Promise<Epoch> {
+    const distributions = Object.values(epoch.detailsByStakingContract).flatMap(details =>
+      Object.values(details.distributionsByStakingAddress),
+    )
+
+    const totalTxs = distributions.length
     const spinner = ora(`Broadcasting ${totalTxs} transactions...`).start()
 
     const doBroadcast = async (stakingAddress: string, signedTx: string, retryAttempt = 0) => {
@@ -309,17 +323,20 @@ export class Wallet {
     }
 
     try {
-      for await (const [stakingAddress, { signedTx, txId }] of Object.entries(txsByStakingAddress)) {
-        if (txId) {
-          epoch.distributionsByStakingAddress[stakingAddress].txId = txId
-          continue
+      for (const [stakingContract, txsByStakingAddress] of Object.entries(txsByStakingContract)) {
+        for (const [stakingAddress, { signedTx, txId }] of Object.entries(txsByStakingAddress)) {
+          if (txId) {
+            epoch.detailsByStakingContract[stakingContract].distributionsByStakingAddress[stakingAddress].txId = txId
+            continue
+          }
+
+          const data = await doBroadcast(stakingAddress, signedTx)
+          if (!data) break
+
+          txsByStakingContract[stakingContract][stakingAddress].txId = data.result.hash
+          epoch.detailsByStakingContract[stakingContract].distributionsByStakingAddress[stakingAddress].txId =
+            data.result.hash
         }
-
-        const data = await doBroadcast(stakingAddress, signedTx)
-        if (!data) break
-
-        txsByStakingAddress[stakingAddress].txId = data.result.hash
-        epoch.distributionsByStakingAddress[stakingAddress].txId = data.result.hash
       }
     } catch (err) {
       if (isAxiosError(err)) {
@@ -332,9 +349,11 @@ export class Wallet {
     }
 
     const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
-    write(txsFile, JSON.stringify(txsByStakingAddress, null, 2))
+    write(txsFile, JSON.stringify(txsByStakingContract, null, 2))
 
-    const processedTxs = Object.values(txsByStakingAddress).filter(tx => !!tx.txId).length
+    const processedTxs = Object.values(txsByStakingContract)
+      .flatMap(txsByStakingAddress => Object.values(txsByStakingAddress))
+      .filter(tx => !!tx.signedTx).length
 
     if (processedTxs !== totalTxs) {
       spinner.fail(`${processedTxs}/${totalTxs} transactions broadcasted, exiting.`)
@@ -347,7 +366,7 @@ export class Wallet {
   }
 
   async distribute(epoch: Epoch, epochHash: string): Promise<Epoch> {
-    const txsByStakingAddress = await this.signTransactions(epoch, epochHash)
-    return this.broadcastTransactions(epoch, txsByStakingAddress)
+    const txsByStakingContract = await this.signTransactions(epoch, epochHash)
+    return this.broadcastTransactions(epoch, txsByStakingContract)
   }
 }

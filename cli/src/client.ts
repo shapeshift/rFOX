@@ -7,7 +7,7 @@ import { arbitrum } from 'viem/chains'
 import { stakingV1Abi } from '../generated/abi'
 import { RFOX_REWARD_RATE } from './constants'
 import { error, info, warn } from './logging'
-import { RewardDistribution } from './types'
+import { CalculateRewardsArgs, RewardDistribution } from './types'
 
 const INFURA_API_KEY = process.env['INFURA_API_KEY']
 
@@ -17,8 +17,12 @@ if (!INFURA_API_KEY) {
 }
 
 const AVERAGE_BLOCK_TIME_BLOCKS = 1000
-const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS = '0xac2a4fd70bcd8bab0662960455c363735f0e2b56'
 const THORCHAIN_PRECISION = 8
+
+export const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX: Address = '0xaC2a4fD70BCD8Bab0662960455c363735f0e2b56'
+export const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_UNIV2_ETH_FOX: Address = '0x5F6Ce0Ca13B87BD738519545d3E018e70E339c24'
+
+export const stakingContracts = [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]
 
 type Revenue = {
   addresses: string[]
@@ -145,6 +149,7 @@ export class Client {
     }
   }
 
+  // TODO: get price for UNI-V2 ETH/FOX pool
   async getPrice(): Promise<Price> {
     try {
       const { data } = await axios.get<Pool>(
@@ -176,12 +181,13 @@ export class Client {
   }
 
   private async getClosingStateByStakingAddress(
+    stakingContract: Address,
     addresses: Address[],
     startBlock: bigint,
     endBlock: bigint,
   ): Promise<Record<string, ClosingState>> {
     const contract = getContract({
-      address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+      address: stakingContract,
       abi: stakingV1Abi,
       client: { public: this.rpc },
     })
@@ -235,17 +241,22 @@ export class Client {
     return distributionsByStakingAddress
   }
 
-  async calculateRewards(
-    startBlock: bigint,
-    endBlock: bigint,
-    secondsInEpoch: bigint,
-    totalDistribution: BigNumber,
-  ): Promise<{ totalRewardUnits: string; distributionsByStakingAddress: Record<string, RewardDistribution> }> {
+  async calculateRewards({
+    stakingContract,
+    startBlock,
+    endBlock,
+    secondsInEpoch,
+    distributionRate,
+    totalRevenue,
+  }: CalculateRewardsArgs): Promise<{
+    totalRewardUnits: string
+    distributionsByStakingAddress: Record<string, RewardDistribution>
+  }> {
     const spinner = ora('Calculating reward distribution').start()
 
     try {
       const stakeEvents = await this.rpc.getContractEvents({
-        address: ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS,
+        address: stakingContract,
         abi: stakingV1Abi,
         eventName: 'Stake',
         fromBlock: 'earliest',
@@ -256,7 +267,15 @@ export class Client {
         ...new Set(stakeEvents.map(event => event.args.account).filter(address => Boolean(address))),
       ] as Address[]
 
-      const closingStateByStakingAddress = await this.getClosingStateByStakingAddress(addresses, startBlock, endBlock)
+      const totalDistribution = BigNumber(totalRevenue).times(distributionRate)
+
+      const closingStateByStakingAddress = await this.getClosingStateByStakingAddress(
+        stakingContract,
+        addresses,
+        startBlock,
+        endBlock,
+      )
+
       const distributionsByStakingAddress = await this.getDistributionsByStakingAddress(
         closingStateByStakingAddress,
         totalDistribution,

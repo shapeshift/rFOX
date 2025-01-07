@@ -85,14 +85,13 @@ export class Client {
       let blockNumber = latestBlock.number - targetBlocksToMove
       while (true) {
         if (blockNumber <= 0n) return 0n
-
         const block = await this.rpc.getBlock({ blockNumber })
-
         const timeDifferenceSeconds = targetTimestamp - block.timestamp
 
         // Block is within 1 block before the target timestamp
-        if (timeDifferenceSeconds >= 0n && timeDifferenceSeconds <= averageBlockTimeSeconds) break
-
+        // Math.ceil is used for averageBlockTimeSeconds because if its sub second, we will never converge
+        // on a solution.
+        if (timeDifferenceSeconds >= 0n && timeDifferenceSeconds <= Math.ceil(averageBlockTimeSeconds)) break
         const blocksToMove = BigInt(Math.ceil(Math.abs(Number(timeDifferenceSeconds)) / averageBlockTimeSeconds))
 
         if (block.timestamp > targetTimestamp) {
@@ -100,6 +99,8 @@ export class Client {
         } else {
           blockNumber += blocksToMove
         }
+        // sleep momentarily to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
 
       // In case of multiple batched blocks for a target timestamp, find the earliest or latest block based on blockMode
@@ -114,6 +115,8 @@ export class Client {
         if (block.timestamp !== targetTimestamp) break
 
         blockNumber = nextBlockNumber
+        // sleep momentarily to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
 
       return blockNumber
@@ -205,6 +208,8 @@ export class Client {
 
       const rewardUnits = totalRewardUnits - totalRewardUnitsPrevEpoch
 
+      // sleep momentarily to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000))
       if (rewardUnits <= 0) continue
 
       closingStateByStakingAddress[address] = { rewardUnits, totalRewardUnits, runeAddress }
@@ -318,7 +323,7 @@ export class Client {
           'The total reward distribution calculated for all stakers is outside of the expected .01% margin of the total rewards to be distributed.',
         )
 
-        info(`Total Distribtution Calculated: ${totalEpochDistribution.div(100000000).toFixed()} RUNE`)
+        info(`Total Distribution Calculated: ${totalEpochDistribution.div(100000000).toFixed()} RUNE`)
         info(`Total Epoch Distribution: ${totalDistribution.div(100000000).toFixed()} RUNE`)
 
         const confirmed = await prompts.confirm({ message: 'Do you want to continue? ' })

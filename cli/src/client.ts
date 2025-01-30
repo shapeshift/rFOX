@@ -185,6 +185,8 @@ export class Client {
       const reserves = await this.rpc.readContract({ address, abi, functionName: 'getReserves' })
       const totalSupplyBaseUnit = await this.rpc.readContract({ address, abi, functionName: 'totalSupply' })
 
+      // reserve0 is for token0 (WETH): https://arbiscan.io/address/0x5F6Ce0Ca13B87BD738519545d3E018e70E339c24#readContract#F15
+      // reserve1 is for token1 (FOX): https://arbiscan.io/address/0x5F6Ce0Ca13B87BD738519545d3E018e70E339c24#readContract#F16
       const [reserve0, reserve1] = reserves.map(reserveBaseUnit => toPrecision(reserveBaseUnit, TOKEN_PRECISION))
       const totalSupply = toPrecision(totalSupplyBaseUnit, TOKEN_PRECISION)
       const uniV2FoxEthPriceUsd = reserve0

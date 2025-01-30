@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import ora from 'ora'
-import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX, Client, stakingContracts } from './client'
+import { Client, stakingContracts } from './client'
 import { MONTHS } from './constants'
 import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
@@ -50,12 +50,9 @@ const processEpoch = async () => {
 
   const totalDistributionRate = Object.entries(metadata.distributionRateByStakingContract).reduce(
     (prev, [stakingContract, distributionRate]) => {
-      info(
-        `Share of total revenue to be distributed as rewards for staking contract: ${stakingContract}: ${distributionRate * 100}%`,
-      )
       const totalDistribution = BigNumber(BigNumber(revenue.amount).times(distributionRate).toFixed(0))
       info(
-        `Total rewards to be distributed for staking contract: ${stakingContract}: ${totalDistribution.div(100000000).toFixed()} RUNE`,
+        `Staking Contract ${stakingContract}:\n\t- Share of total revenue to be distributed as rewards: ${distributionRate * 100}%\n\t- Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`,
       )
       return prev + distributionRate
     },
@@ -95,7 +92,7 @@ const processEpoch = async () => {
 
   const detailsByStakingContract: Record<string, EpochDetails> = {}
   for (const stakingContract of stakingContracts) {
-    const distributionRate = metadata.distributionRateByStakingContract[stakingContract]
+    const distributionRate = metadata.distributionRateByStakingContract[stakingContract] ?? 0
 
     const { totalRewardUnits, distributionsByStakingAddress } = await client.calculateRewards({
       stakingContract,
@@ -107,7 +104,7 @@ const processEpoch = async () => {
     })
 
     detailsByStakingContract[stakingContract] = {
-      assetPriceUsd,
+      assetPriceUsd: assetPriceUsd[stakingContract],
       distributionRate,
       distributionsByStakingAddress,
       totalRewardUnits,
@@ -251,7 +248,9 @@ const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet:
 
   processedEpoch.runePriceUsd = runePriceUsd
   processedEpoch.distributionStatus = 'complete'
-  processedEpoch.detailsByStakingContract[ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX].assetPriceUsd = assetPriceUsd
+  stakingContracts.forEach(stakingContract => {
+    processedEpoch.detailsByStakingContract[stakingContract].assetPriceUsd = assetPriceUsd[stakingContract]
+  })
 
   const processedEpochHash = await ipfs.addEpoch(processedEpoch)
 

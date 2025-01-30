@@ -205,7 +205,7 @@ export class IPFS {
       }
     }
 
-    const choice = await prompts.select<'distributionRate' | 'burnRate' | 'treasuryAddress'>({
+    const choice = await prompts.select<'distributionRate' | 'burnRate' | 'treasuryAddress' | 'skip'>({
       message: 'What do you want to update?',
       choices: [
         {
@@ -225,6 +225,7 @@ export class IPFS {
           value: 'treasuryAddress',
           description: 'Update the THORChain treasury address used to determine revenue earned by the DAO.',
         },
+        { name: 'Skip', value: 'skip' },
       ],
     })
 
@@ -283,6 +284,8 @@ export class IPFS {
 
         break
       }
+      case 'skip':
+        break
       default:
         error(`Invalid choice: ${choice}, exiting.`)
         process.exit(1)

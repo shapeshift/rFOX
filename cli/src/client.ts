@@ -2,7 +2,7 @@ import * as prompts from '@inquirer/prompts'
 import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import ora, { Ora } from 'ora'
-import { Address, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem'
+import { Address, PublicClient, createPublicClient, getAddress, getContract, http, parseAbi } from 'viem'
 import { arbitrum } from 'viem/chains'
 import { stakingV1Abi } from '../generated/abi'
 import { RFOX_REWARD_RATE } from './constants'
@@ -18,11 +18,16 @@ if (!INFURA_API_KEY) {
 
 const AVERAGE_BLOCK_TIME_BLOCKS = 1000
 const THORCHAIN_PRECISION = 8
+const TOKEN_PRECISION = 18
+const UNIV2_ETH_FOX_LP_TOKEN: Address = '0x5F6Ce0Ca13B87BD738519545d3E018e70E339c24'
 
 export const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX: Address = '0xaC2a4fD70BCD8Bab0662960455c363735f0e2b56'
 export const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_UNIV2_ETH_FOX: Address = '0x83B51B7605d2E277E03A7D6451B1efc0e5253A2F'
 
-export const stakingContracts = [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]
+export const stakingContracts = [
+  ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX,
+  ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_UNIV2_ETH_FOX,
+]
 
 type Revenue = {
   addresses: string[]
@@ -36,7 +41,7 @@ type Pool = {
 }
 
 type Price = {
-  assetPriceUsd: string
+  assetPriceUsd: Record<string, string>
   runePriceUsd: string
 }
 
@@ -47,6 +52,10 @@ type ClosingState = {
 }
 
 type ClosingStateByStakingAddress = Record<string, ClosingState>
+
+const toPrecision = (value: string | number | bigint, precision: number) => {
+  return new BigNumber(value.toString()).div(new BigNumber(10).pow(precision))
+}
 
 export class Client {
   private rpc: PublicClient
@@ -152,24 +161,47 @@ export class Client {
     }
   }
 
-  // TODO: get price for UNI-V2 ETH/FOX pool
   async getPrice(): Promise<Price> {
     try {
-      const { data } = await axios.get<Pool>(
+      const { data: ethPool } = await axios.get<Pool>(
+        'https://daemon.thorchain.shapeshift.com/lcd/thorchain/pool/ETH.ETH',
+      )
+
+      const { data: foxPool } = await axios.get<Pool>(
         'https://daemon.thorchain.shapeshift.com/lcd/thorchain/pool/ETH.FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D',
       )
 
-      const runeInAsset = new BigNumber(data.balance_asset).div(data.balance_rune)
-      const assetPriceUsd = new BigNumber(data.asset_tor_price)
-        .div(new BigNumber(10).pow(THORCHAIN_PRECISION))
-        .toFixed(THORCHAIN_PRECISION)
-      const runePriceUsd = runeInAsset.times(assetPriceUsd).toFixed(THORCHAIN_PRECISION)
+      const ethPriceUsd = toPrecision(ethPool.asset_tor_price, THORCHAIN_PRECISION).toFixed(THORCHAIN_PRECISION)
+      const foxPriceUsd = toPrecision(foxPool.asset_tor_price, THORCHAIN_PRECISION).toFixed(THORCHAIN_PRECISION)
+      const runeInAsset = new BigNumber(foxPool.balance_asset).div(foxPool.balance_rune)
+      const runePriceUsd = runeInAsset.times(foxPriceUsd).toFixed(THORCHAIN_PRECISION)
 
-      info(`Current asset price (USD): ${assetPriceUsd}`)
-      info(`Current rune price (USD): ${runePriceUsd}`)
+      const address = UNIV2_ETH_FOX_LP_TOKEN
+      const abi = parseAbi([
+        'function getReserves() view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast)',
+        'function totalSupply() view returns (uint256 totalSupply)',
+      ])
+
+      const reserves = await this.rpc.readContract({ address, abi, functionName: 'getReserves' })
+      const totalSupplyBaseUnit = await this.rpc.readContract({ address, abi, functionName: 'totalSupply' })
+
+      const [reserve0, reserve1] = reserves.map(reserveBaseUnit => toPrecision(reserveBaseUnit, TOKEN_PRECISION))
+      const totalSupply = toPrecision(totalSupplyBaseUnit, TOKEN_PRECISION)
+      const uniV2FoxEthPriceUsd = reserve0
+        .times(ethPriceUsd)
+        .plus(reserve1.times(foxPriceUsd))
+        .div(totalSupply)
+        .toFixed(THORCHAIN_PRECISION)
+
+      info(`Current RUNE price (USD): ${runePriceUsd}`)
+      info(`Current FOX price (USD): ${foxPriceUsd}`)
+      info(`Current Uniswapv2 LP ETH/FOX price (USD): ${uniV2FoxEthPriceUsd}`)
 
       return {
-        assetPriceUsd,
+        assetPriceUsd: {
+          [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: foxPriceUsd,
+          [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_UNIV2_ETH_FOX]: uniV2FoxEthPriceUsd,
+        },
         runePriceUsd,
       }
     } catch (err) {
@@ -257,7 +289,7 @@ export class Client {
     totalRewardUnits: string
     distributionsByStakingAddress: Record<string, RewardDistribution>
   }> {
-    const spinner = ora('Calculating reward distribution').start()
+    const spinner = ora(`Calculating reward distribution for staking contract: ${stakingContract}`).start()
 
     try {
       const stakeEvents = await this.rpc.getContractEvents({

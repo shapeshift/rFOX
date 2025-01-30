@@ -1,3 +1,5 @@
+import { Address } from 'viem'
+
 /**
  * Metadata for rFOX staking program (IPFS)
  * @typedef {Object} RFOXMetadata
@@ -5,9 +7,9 @@
  * @property {number} epochStartTimestamp - The start timestamp for the current epoch
  * @property {number} epochEndTimestamp - The end timestamp for the current epoch
  * @property {string} treasuryAddress - The treasury address on THORChain used to determine revenue earned by the DAO for rFOX reward distributions and total burn
- * @property {number} distributionRate - The percentage of revenue (in RUNE) accumulated by the treasury to be distributed as rewards
  * @property {number} burnRate - The percentage of revenue (in RUNE) accumulated by the treasury to be used to buy FOX from the open market and subsequently burned
- * @property {Record<number, string>} ipfsHashByEpoch - A record of epoch numbers to their corresponding IPFS hashes
+ * @property {number} distributionRateByStakingContract - The percentage of revenue (in RUNE) accumulated by the treasury to be distributed as rewards for each staking contract
+ * @property {Record<string, string>} ipfsHashByEpoch - The IPFS hashes for each epoch
  */
 export type RFOXMetadata = {
   /** The current epoch number */
@@ -16,18 +18,18 @@ export type RFOXMetadata = {
   epochStartTimestamp: number
   /** The end timestamp for the current epoch */
   epochEndTimestamp: number
-  /** The current percentage of revenue (RUNE) earned by the treasury to be distributed as rewards */
-  distributionRate: number
-  /** The current percentage of revenue (RUNE) earned by the treasury to be used to buy FOX from the open market and subsequently burned */
-  burnRate: number
   /** The treasury address on THORChain used to determine revenue earned by the DAO for rFOX reward distributions and total burn */
   treasuryAddress: string
-  /** A record of epoch number to their corresponding IPFS hashes */
-  ipfsHashByEpoch: Record<number, string>
+  /** The current percentage of revenue (RUNE) earned by the treasury to be used to buy FOX from the open market and subsequently burned */
+  burnRate: number
+  /** The current percentage of revenue (RUNE) earned by the treasury to be distributed as rewards for each staking contract */
+  distributionRateByStakingContract: Record<string, number>
+  /** The IPFS hashes for each epoch */
+  ipfsHashByEpoch: Record<string, string>
 }
 
 /**
- * Details for a single reward distribution
+ * Details for a single reward distribution (IPFS)
  * @typedef {Object} RewardDistribution
  * @property {string} amount - The amount (RUNE) distributed to the reward address
  * @property {string} rewardUnits - The rFOX staking reward units earned for the current epoch
@@ -52,15 +54,16 @@ export type RewardDistribution = {
  * Details for a completed epoch (IPFS)
  * @typedef {Object} Epoch
  * @property {number} number - The epoch number for this epoch
- * @property {number} days - The number of days in this epoch
+ * @property {number} startTimestamp - The start timestamp for this epoch
+ * @property {number} endTimestamp - The end timestamp for this epoch
  * @property {number} startBlock - The start block for this epoch
  * @property {number} endBlock - The end block for this epoch
- * @property {string} totalRevenue - The total revenue (RUNE) earned by the treasury for this epoch
- * @property {number} distributionRate - The percentage of revenue (RUNE) accumulated by the treasury to be distributed as rewards for this epoch
- * @property {number} burnRate - The percentage of revenue (RUNE) accumulated by the treasury to be used to buy FOX from the open market and subsequently burned for this epoch
  * @property {string} treasuryAddress - The treasury address on THORChain used to determine revenue earned by the DAO for rFOX reward distributions and total burn
+ * @property {string} totalRevenue - The total revenue (RUNE) earned by the treasury for this epoch
+ * @property {number} burnRate - The percentage of revenue (RUNE) accumulated by the treasury to be used to buy FOX from the open market and subsequently burned for this epoch
+ * @property {string} runePriceUsd - The spot price of rune in USD
  * @property {'pending' | 'complete'} distributionStatus - The status of the reward distribution
- * @property {Record<number, RewardDistribution>} distributionsByStakingAddress - A record of staking address to distribution for this epoch
+ * @property {Record<string, EpochDetails>} detailsByStakingAddress - The details for each staking contract for this epoch
  */
 export type Epoch = {
   /** The epoch number for this epoch */
@@ -73,22 +76,44 @@ export type Epoch = {
   startBlock: number
   /** The end block for this epoch */
   endBlock: number
+  /** The treasury address on THORChain used to determine revenue earned by the DAO for rFOX reward distributions and total burn */
+  treasuryAddress: string
   /** The total revenue (RUNE) earned by the treasury for this epoch */
   totalRevenue: string
+  /** The percentage of revenue (RUNE) accumulated by the treasury to be used to buy FOX from the open market and subsequently burned for this epoch */
+  burnRate: number
+  /** The spot price of rune in USD */
+  runePriceUsd: string
+  /** The status of the reward distribution */
+  distributionStatus: 'pending' | 'complete'
+  /** The details for each staking contract for this epoch */
+  detailsByStakingContract: Record<string, EpochDetails>
+}
+
+/**
+ * Epoch details for a staking contract (IPFS)
+ * @typedef {Object} EpochDetails
+ * @property {number} totalRewardUnits - The total rFOX staking reward units for this epoch
+ * @property {number} distributionRate - The percentage of revenue (RUNE) accumulated by the treasury to be distributed as rewards for this epoch
+ * @property {string} assetPriceUsd - The spot price of asset in USD
+ * @property {Record<string, RewardDistribution>} distributionsByStakingAddress - The reward distribution for each staking address for this epoch
+ */
+export type EpochDetails = {
   /** The total rFOX staking reward units for this epoch */
   totalRewardUnits: string
   /** The percentage of revenue (RUNE) accumulated by the treasury to be distributed as rewards for this epoch */
   distributionRate: number
-  /** The percentage of revenue (RUNE) accumulated by the treasury to be used to buy FOX from the open market and subsequently burned for this epoch */
-  burnRate: number
   /** The spot price of asset in USD */
   assetPriceUsd: string
-  /** The spot price of rune in USD */
-  runePriceUsd: string
-  /** The treasury address on THORChain used to determine revenue earned by the DAO for rFOX reward distributions and total burn */
-  treasuryAddress: string
-  /** The status of the reward distribution */
-  distributionStatus: 'pending' | 'complete'
-  /** A record of staking address to reward distribution for this epoch */
+  /** The reward distribution for each staking address for this epoch */
   distributionsByStakingAddress: Record<string, RewardDistribution>
+}
+
+export type CalculateRewardsArgs = {
+  stakingContract: Address
+  startBlock: bigint
+  endBlock: bigint
+  secondsInEpoch: bigint
+  distributionRate: number
+  totalRevenue: string
 }

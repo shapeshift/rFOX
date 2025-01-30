@@ -41,7 +41,12 @@ contract MockStakingV2 is
         _disableInitializers();
     }
 
-    function initialize() external reinitializer(2) {}
+    function initialize() external reinitializer(2) {
+        __Ownable_init(msg.sender);
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
+    }
 
     function _authorizeUpgrade(
         address newImplementation

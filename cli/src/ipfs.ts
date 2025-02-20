@@ -145,9 +145,9 @@ export class IPFS {
       if (isEpoch(data)) {
         const month = MONTHS[new Date(data.startTimestamp).getUTCMonth()]
 
-        const distributions = Object.values(data.detailsByStakingContract).flatMap(details =>
-          Object.values(details.distributionsByStakingAddress),
-        )
+        const distributions = Object.values(data.detailsByStakingContract)
+          .flatMap(details => Object.values(details.distributionsByStakingAddress))
+          .filter(distribution => BigNumber(distribution.amount).gt(0))
 
         const totalDistributionAmount = distributions.reduce((prev, distribution) => {
           return prev.plus(distribution.amount)
@@ -157,7 +157,7 @@ export class IPFS {
         const totalAddresses = distributions.length
 
         info(
-          `Running ${month} rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} RUNE\n    - Total Addresses: ${totalAddresses}`,
+          `${month} rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} RUNE\n    - Total Addresses: ${totalAddresses}`,
         )
 
         return data

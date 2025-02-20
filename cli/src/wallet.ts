@@ -1,6 +1,7 @@
 import { bip32ToAddressNList } from '@shapeshiftoss/hdwallet-core'
 import { NativeHDWallet } from '@shapeshiftoss/hdwallet-native'
 import axios, { isAxiosError } from 'axios'
+import BigNumber from 'bignumber.js'
 import chalk from 'chalk'
 import symbols from 'log-symbols'
 import path from 'node:path'
@@ -110,9 +111,9 @@ export class Wallet {
   async fund(epoch: Epoch, epochHash: string) {
     const { address } = await this.getAddress()
 
-    const distributions = Object.values(epoch.detailsByStakingContract).flatMap(details =>
-      Object.values(details.distributionsByStakingAddress),
-    )
+    const distributions = Object.values(epoch.detailsByStakingContract)
+      .flatMap(details => Object.values(details.distributionsByStakingAddress))
+      .filter(distribution => BigNumber(distribution.amount).gt(0))
 
     const totalDistribution = distributions.reduce((prev, distribution) => {
       return prev + BigInt(distribution.amount)
@@ -180,9 +181,9 @@ export class Wallet {
     const txsFile = path.join(RFOX_DIR, `txs_epoch-${epoch.number}.json`)
     const txs = read(txsFile)
 
-    const distributions = Object.values(epoch.detailsByStakingContract).flatMap(details =>
-      Object.values(details.distributionsByStakingAddress),
-    )
+    const distributions = Object.values(epoch.detailsByStakingContract)
+      .flatMap(details => Object.values(details.distributionsByStakingAddress))
+      .filter(distribution => BigNumber(distribution.amount).gt(0))
 
     const totalTxs = distributions.length
     const spinner = ora(`Signing ${totalTxs} transactions...`).start()
@@ -216,8 +217,12 @@ export class Wallet {
       let i = 0
       const txsByStakingContract: TxsByStakingContract = {}
       try {
-        for (const [stakingContract, details] of Object.entries(epoch.detailsByStakingContract))
+        for (const [stakingContract, details] of Object.entries(epoch.detailsByStakingContract)) {
+          txsByStakingContract[stakingContract] = {}
+
           for (const [stakingAddress, distribution] of Object.entries(details.distributionsByStakingAddress)) {
+            if (!BigNumber(distribution.amount).gt(0)) continue
+
             const unsignedTx = {
               account_number: account.account_number,
               addressNList,
@@ -257,6 +262,7 @@ export class Wallet {
 
             i++
           }
+        }
       } catch (err) {
         if (err instanceof Error) {
           spinner.suffixText = suffix(`Failed to sign transaction: ${err.message}.`)
@@ -284,9 +290,9 @@ export class Wallet {
   }
 
   async broadcastTransactions(epoch: Epoch, txsByStakingContract: TxsByStakingContract): Promise<Epoch> {
-    const distributions = Object.values(epoch.detailsByStakingContract).flatMap(details =>
-      Object.values(details.distributionsByStakingAddress),
-    )
+    const distributions = Object.values(epoch.detailsByStakingContract)
+      .flatMap(details => Object.values(details.distributionsByStakingAddress))
+      .filter(distribution => BigNumber(distribution.amount).gt(0))
 
     const totalTxs = distributions.length
     const spinner = ora(`Broadcasting ${totalTxs} transactions...`).start()

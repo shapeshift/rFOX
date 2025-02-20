@@ -32,10 +32,12 @@ jobs:
       - name: Run Forge tests
         run: |
           forge clean
+          forge build
           forge test -vvv
         id: test
       - name: Generate coverage report
         run: |
           forge clean
+          forge build
           forge coverage --report summary
         id: coverage

@@ -1,5 +1,5 @@
 import * as prompts from '@inquirer/prompts'
-import PinataClient from '@pinata/sdk'
+import { PinataSDK } from 'pinata'
 import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import { error, info } from './logging'
@@ -7,18 +7,12 @@ import { Epoch, EpochDetails, RFOXMetadata, RewardDistribution } from './types'
 import { MONTHS } from './constants'
 import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX } from './client'
 
-const PINATA_API_KEY = process.env['PINATA_API_KEY']
-const PINATA_SECRET_API_KEY = process.env['PINATA_SECRET_API_KEY']
+const PINATA_JWT = process.env['PINATA_JWT']
 const PINATA_GATEWAY_URL = process.env['PINATA_GATEWAY_URL']
 const PINATA_GATEWAY_API_KEY = process.env['PINATA_GATEWAY_API_KEY']
 
-if (!PINATA_API_KEY) {
-  error('PINATA_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
-  process.exit(1)
-}
-
-if (!PINATA_SECRET_API_KEY) {
-  error('PINATA_SECRET_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
+if (!PINATA_JWT) {
+  error('PINATA_JWT not set. Please make sure you copied the sample.env and filled out your .env file.')
   process.exit(1)
 }
 
@@ -96,16 +90,22 @@ const isRewardDistribution = (obj: any): obj is RewardDistribution => {
 }
 
 export class IPFS {
-  private client: PinataClient
+  private client: PinataSDK
 
-  constructor(client: PinataClient) {
+  constructor(client: PinataSDK) {
     this.client = client
   }
 
   static async new(): Promise<IPFS> {
     try {
-      const client = new PinataClient({ pinataApiKey: PINATA_API_KEY, pinataSecretApiKey: PINATA_SECRET_API_KEY })
+      const client = new PinataSDK({
+        pinataJwt: PINATA_JWT,
+        pinataGateway: PINATA_GATEWAY_URL,
+        pinataGatewayKey: PINATA_GATEWAY_API_KEY,
+      })
+
       await client.testAuthentication()
+
       return new IPFS(client)
     } catch {
       error('Failed to connect to IPFS, exiting.')
@@ -115,13 +115,13 @@ export class IPFS {
 
   async addEpoch(epoch: Epoch): Promise<string> {
     try {
-      const { IpfsHash } = await this.client.pinJSONToIPFS(epoch, {
-        pinataMetadata: { name: `rFoxEpoch${epoch.number}_${epoch.distributionStatus}.json` },
-      })
+      const { cid } = await this.client.upload.public
+        .json(epoch)
+        .name(`rFoxEpoch${epoch.number}_${epoch.distributionStatus}.json`)
 
-      info(`rFOX Epoch #${epoch.number} IPFS hash: ${IpfsHash}`)
+      info(`rFOX Epoch #${epoch.number} IPFS hash: ${cid}`)
 
-      return IpfsHash
+      return cid
     } catch {
       error('Failed to add epoch to IPFS, exiting.')
       process.exit(1)
@@ -136,11 +136,7 @@ export class IPFS {
     }
 
     try {
-      const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${hash}`, {
-        headers: {
-          'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
-        },
-      })
+      const { data } = await this.client.gateways.public.get(hash)
 
       if (isEpoch(data)) {
         const month = MONTHS[new Date(data.startTimestamp).getUTCMonth()]
@@ -195,13 +191,11 @@ export class IPFS {
       if (overrides.epoch) {
         metadata.ipfsHashByEpoch[overrides.epoch.number] = overrides.epoch.hash
 
-        const { IpfsHash } = await this.client.pinJSONToIPFS(metadata, {
-          pinataMetadata: { name: 'rFoxMetadata.json' },
-        })
+        const { cid } = await this.client.upload.public.json(metadata).name('rFoxMetadata.json')
 
-        info(`rFOX Metadata IPFS hash: ${IpfsHash}`)
+        info(`rFOX Metadata IPFS hash: ${cid}`)
 
-        return IpfsHash
+        return cid
       }
     }
 
@@ -322,13 +316,11 @@ export class IPFS {
 
       if (!confirmed) return
 
-      const { IpfsHash } = await this.client.pinJSONToIPFS(metadata, {
-        pinataMetadata: { name: 'rFoxMetadata.json' },
-      })
+      const { cid } = await this.client.upload.public.json(metadata).name('rFoxMetadata.json')
 
-      info(`rFOX Metadata IPFS hash: ${IpfsHash}`)
+      info(`rFOX Metadata IPFS hash: ${cid}`)
 
-      return IpfsHash
+      return cid
     }
   }
 
@@ -338,11 +330,7 @@ export class IPFS {
     })
 
     try {
-      const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${hash}`, {
-        headers: {
-          'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
-        },
-      })
+      const { data } = await this.client.gateways.public.get(hash)
 
       if (isMetadata(data)) return data
 
@@ -390,11 +378,7 @@ export class IPFS {
     })
 
     try {
-      const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${metadataHash}`, {
-        headers: {
-          'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
-        },
-      })
+      const { data } = (await this.client.gateways.public.get(metadataHash)) as any
 
       const metadata = ((): RFOXMetadata => {
         if (isMetadata(data)) return data
@@ -413,11 +397,7 @@ export class IPFS {
       })()
 
       for (const [epochNum, epochHash] of Object.entries(data.ipfsHashByEpoch)) {
-        const { data } = await axios.get(`${PINATA_GATEWAY_URL}/ipfs/${epochHash}`, {
-          headers: {
-            'x-pinata-gateway-token': PINATA_GATEWAY_API_KEY,
-          },
-        })
+        const { data } = (await this.client.gateways.public.get(metadataHash)) as any
 
         if (isEpoch(data)) {
           metadata.ipfsHashByEpoch[epochNum] = epochHash as string

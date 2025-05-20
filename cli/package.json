@@ -4,7 +4,7 @@
   "type": "module",
   "exports": "./src/index.js",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "license": "MIT",
   "scripts": {
@@ -15,7 +15,6 @@
   "dependencies": {
     "@inquirer/core": "^8.2.2",
     "@inquirer/prompts": "^5.0.5",
-    "@pinata/sdk": "^2.1.0",
     "@shapeshiftoss/hdwallet-core": "^1.55.1",
     "@shapeshiftoss/hdwallet-native": "^1.55.1",
     "axios": "^1.7.2",
@@ -26,6 +25,7 @@
     "dotenv": "^16.4.5",
     "log-symbols": "^6.0.0",
     "ora": "^8.0.1",
+    "pinata": "^2.3.0",
     "viem": "^2.17.3"
   },
   "devDependencies": {

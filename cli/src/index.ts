@@ -52,13 +52,11 @@ const processEpoch = async () => {
     info(`\t- ${BigNumber(amount).div(100000000).toFixed(8)} ${denom}`)
   })
 
-  const totalRevenueInRune = await client.getTotalRevenueInRune(revenue.revenue)
-
-  info(`Total revenue in RUNE: ${BigNumber(totalRevenueInRune).div(100000000).toFixed(8)}`)
+  info(`Total revenue in RUNE: ${BigNumber(revenue.amount).div(100000000).toFixed(8)}`)
 
   const totalDistributionRate = Object.entries(metadata.distributionRateByStakingContract).reduce(
     (prev, [stakingContract, distributionRate]) => {
-      const totalDistribution = BigNumber(BigNumber(totalRevenueInRune).times(distributionRate).toFixed(0))
+      const totalDistribution = BigNumber(BigNumber(revenue.amount).times(distributionRate).toFixed(0))
       info(
         `Staking Contract ${stakingContract}:\n\t- Share of total revenue to be distributed as rewards: ${distributionRate * 100}%\n\t- Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`,
       )
@@ -68,11 +66,11 @@ const processEpoch = async () => {
   )
 
   info(`Share of total revenue to be distributed as rewards: ${totalDistributionRate * 100}%`)
-  const totalDistribution = BigNumber(BigNumber(totalRevenueInRune).times(totalDistributionRate).toFixed(0))
+  const totalDistribution = BigNumber(BigNumber(revenue.amount).times(totalDistributionRate).toFixed(0))
   info(`Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`)
 
   info(`Share of total revenue to buy back fox and burn: ${metadata.burnRate * 100}%`)
-  const totalBurn = BigNumber(BigNumber(totalRevenueInRune).times(metadata.burnRate).toFixed(0))
+  const totalBurn = BigNumber(BigNumber(revenue.amount).times(metadata.burnRate).toFixed(0))
   info(`Total amount to be used to buy back fox and burn: ${totalBurn.div(100000000).toFixed()} RUNE`)
 
   const spinner = ora('Detecting epoch start and end blocks...').start()
@@ -108,7 +106,7 @@ const processEpoch = async () => {
       endBlock,
       secondsInEpoch,
       distributionRate,
-      totalRevenue: totalRevenueInRune,
+      totalRevenue: revenue.amount,
     })
 
     detailsByStakingContract[stakingContract] = {
@@ -126,7 +124,7 @@ const processEpoch = async () => {
     startBlock: Number(startBlock),
     endBlock: Number(endBlock),
     treasuryAddress: metadata.treasuryAddress,
-    totalRevenue: totalRevenueInRune,
+    totalRevenue: revenue.amount,
     revenue: revenue.revenue,
     burnRate: metadata.burnRate,
     runePriceUsd,

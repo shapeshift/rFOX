@@ -173,35 +173,6 @@ export class Client {
     }
   }
 
-  async getTotalRevenueInRune(revenue: Record<string, string>): Promise<string> {
-    try {
-      let total = new BigNumber(0)
-
-      for (const [denom, amount] of Object.entries(revenue)) {
-        if (denom === 'THOR.RUNE') {
-          total = total.plus(amount)
-          continue
-        }
-
-        const { data: pool } = await axios.get<Pool>(`${THORNODE_URL}/lcd/thorchain/pool/${denom}`)
-
-        const assetInRune = new BigNumber(pool.balance_rune).div(pool.balance_asset)
-
-        total = total.plus(new BigNumber(amount).times(assetInRune).toFixed(0))
-      }
-
-      return total.toFixed()
-    } catch (err) {
-      if (isAxiosError(err)) {
-        error(`Failed to get total revenue in rune: ${err.message}, exiting.`)
-      } else {
-        error('Failed to get total revenue in rune, exiting.')
-      }
-
-      process.exit(1)
-    }
-  }
-
   async getPrice(): Promise<Price> {
     try {
       const { data: ethPool } = await axios.get<Pool>(`${THORNODE_URL}/lcd/thorchain/pool/ETH.ETH`)

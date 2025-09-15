@@ -11,9 +11,14 @@ import { error, info, success } from './logging'
 import { Epoch } from './types'
 import { RFOX_DIR } from '.'
 
+const THORNODE_URL = process.env['THORNODE_URL']
+if (!THORNODE_URL) {
+  error('THORNODE_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
+
 const BIP32_PATH = `m/44'/931'/0'/0/0`
 const SHAPESHIFT_MULTISIG_ADDRESS = 'thor122h9hlrugzdny9ct95z6g7afvpzu34s73uklju'
-const THORNODE_URL = 'https://daemon.thorchain.shapeshift.com'
 
 const addressNList = bip32ToAddressNList(BIP32_PATH)
 

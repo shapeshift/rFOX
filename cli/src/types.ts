@@ -80,6 +80,8 @@ export type Epoch = {
   treasuryAddress: string
   /** The total revenue (RUNE) earned by the treasury for this epoch */
   totalRevenue: string
+  /** The revenue earned (by denom) by the treasury for this epoch */
+  revenue: Record<string, string>
   /** The percentage of revenue (RUNE) accumulated by the treasury to be used to buy FOX from the open market and subsequently burned for this epoch */
   burnRate: number
   /** The spot price of rune in USD */

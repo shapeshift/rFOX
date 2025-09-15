@@ -44,9 +44,15 @@ const processEpoch = async () => {
 
   const revenue = await client.getRevenue(metadata.epochStartTimestamp, metadata.epochEndTimestamp)
 
-  info(
-    `Total ${month} revenue earned by ${revenue.addresses}: ${BigNumber(revenue.amount).div(100000000).toFixed(8)} RUNE`,
-  )
+  info(`Affilate addresses:`)
+  revenue.addresses.forEach(address => info(`\t- ${address}`))
+
+  info(`Total revenue earned by denom:`)
+  Object.entries(revenue.revenue).forEach(([denom, amount]) => {
+    info(`\t- ${BigNumber(amount).div(100000000).toFixed(8)} ${denom}`)
+  })
+
+  info(`Total revenue in RUNE: ${BigNumber(revenue.amount).div(100000000).toFixed(8)}`)
 
   const totalDistributionRate = Object.entries(metadata.distributionRateByStakingContract).reduce(
     (prev, [stakingContract, distributionRate]) => {
@@ -119,6 +125,7 @@ const processEpoch = async () => {
     endBlock: Number(endBlock),
     treasuryAddress: metadata.treasuryAddress,
     totalRevenue: revenue.amount,
+    revenue: revenue.revenue,
     burnRate: metadata.burnRate,
     runePriceUsd,
     distributionStatus: 'pending',

@@ -10,9 +10,20 @@ import { error, info, warn } from './logging'
 import { CalculateRewardsArgs, RewardDistribution } from './types'
 
 const INFURA_API_KEY = process.env['INFURA_API_KEY']
-
 if (!INFURA_API_KEY) {
   error('INFURA_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
+
+const THORNODE_URL = process.env['THORNODE_URL']
+if (!THORNODE_URL) {
+  error('THORNODE_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
+
+const UNCHAINED_URL = process.env['UNCHAINED_URL']
+if (!UNCHAINED_URL) {
+  error('UNCHAINED_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
   process.exit(1)
 }
 
@@ -32,6 +43,7 @@ export const stakingContracts = [
 type Revenue = {
   addresses: string[]
   amount: string
+  revenue: Record<string, string>
 }
 
 type Pool = {
@@ -145,7 +157,7 @@ export class Client {
   async getRevenue(startTimestamp: number, endTimestamp: number): Promise<Revenue> {
     try {
       const { data } = await axios.get<Revenue>(
-        `https://api.thorchain.shapeshift.com/api/v1/affiliate/revenue?start=${startTimestamp}&end=${endTimestamp}`,
+        `${UNCHAINED_URL}/api/v1/affiliate/revenue?start=${startTimestamp}&end=${endTimestamp}`,
       )
       return data
     } catch (err) {
@@ -163,12 +175,10 @@ export class Client {
 
   async getPrice(): Promise<Price> {
     try {
-      const { data: ethPool } = await axios.get<Pool>(
-        'https://daemon.thorchain.shapeshift.com/lcd/thorchain/pool/ETH.ETH',
-      )
+      const { data: ethPool } = await axios.get<Pool>(`${THORNODE_URL}/lcd/thorchain/pool/ETH.ETH`)
 
       const { data: foxPool } = await axios.get<Pool>(
-        'https://daemon.thorchain.shapeshift.com/lcd/thorchain/pool/ETH.FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D',
+        `${THORNODE_URL}/lcd/thorchain/pool/ETH.FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D`,
       )
 
       const ethPriceUsd = toPrecision(ethPool.asset_tor_price, THORCHAIN_PRECISION).toFixed(THORCHAIN_PRECISION)

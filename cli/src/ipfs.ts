@@ -1,6 +1,6 @@
 import * as prompts from '@inquirer/prompts'
 import { PinataSDK } from 'pinata'
-import axios, { isAxiosError } from 'axios'
+import { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import { error, info } from './logging'
 import { Epoch, EpochDetails, RFOXMetadata, RewardDistribution } from './types'

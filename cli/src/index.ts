@@ -121,6 +121,7 @@ const processEpoch = async () => {
     number: metadata.epoch,
     startTimestamp: metadata.epochStartTimestamp,
     endTimestamp: metadata.epochEndTimestamp,
+    distributionTimestamp: metadata.epochEndTimestamp + 1,
     startBlock: Number(startBlock),
     endBlock: Number(endBlock),
     treasuryAddress: metadata.treasuryAddress,
@@ -255,6 +256,7 @@ const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet:
 
   processedEpoch.runePriceUsd = runePriceUsd
   processedEpoch.distributionStatus = 'complete'
+  processedEpoch.distributionTimestamp = Date.now()
   stakingContracts.forEach(stakingContract => {
     processedEpoch.detailsByStakingContract[stakingContract].assetPriceUsd = assetPriceUsd[stakingContract]
   })

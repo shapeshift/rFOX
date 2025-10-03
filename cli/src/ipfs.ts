@@ -1,6 +1,6 @@
 import * as prompts from '@inquirer/prompts'
 import { PinataSDK } from 'pinata'
-import { isAxiosError } from 'axios'
+import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import { error, info } from './logging'
 import { Epoch, EpochDetails, RFOXMetadata, RewardDistribution } from './types'
@@ -10,6 +10,8 @@ import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX } from './client'
 const PINATA_JWT = process.env['PINATA_JWT']
 const PINATA_GATEWAY_URL = process.env['PINATA_GATEWAY_URL']
 const PINATA_GATEWAY_API_KEY = process.env['PINATA_GATEWAY_API_KEY']
+const UNCHAINED_URL = process.env['UNCHAINED_URL']
+const UNCHAINED_V1_URL = process.env['UNCHAINED_V1_URL']
 
 if (!PINATA_JWT) {
   error('PINATA_JWT not set. Please make sure you copied the sample.env and filled out your .env file.')
@@ -24,6 +26,20 @@ if (!PINATA_GATEWAY_URL) {
 if (!PINATA_GATEWAY_API_KEY) {
   error('PINATA_GATEWAY_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
   process.exit(1)
+}
+
+if (!UNCHAINED_URL) {
+  error('UNCHAINED_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
+
+if (!UNCHAINED_V1_URL) {
+  error('UNCHAINED_V1_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
+
+type Tx = {
+  timestamp: number
 }
 
 const isMetadata = (obj: any): obj is RFOXMetadata => {
@@ -52,6 +68,7 @@ const isEpoch = (obj: any): obj is Epoch => {
     typeof obj.number === 'number' &&
     typeof obj.startTimestamp === 'number' &&
     typeof obj.endTimestamp === 'number' &&
+    typeof obj.distributionTimestamp === 'number' &&
     typeof obj.startBlock === 'number' &&
     typeof obj.endBlock === 'number' &&
     typeof obj.treasuryAddress === 'string' &&
@@ -372,74 +389,141 @@ export class IPFS {
     return epoch
   }
 
+  private async migrate_v1(data: any) {
+    const metadata = {
+      epoch: data.epoch,
+      epochStartTimestamp: data.epochStartTimestamp,
+      epochEndTimestamp: data.epochEndTimestamp,
+      treasuryAddress: data.treasuryAddress,
+      burnRate: data.burnRate,
+      distributionRateByStakingContract: {
+        [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: data.distributionRate,
+      },
+      ipfsHashByEpoch: {} as Record<string, string>,
+    }
+
+    for (const [epochNum, epochHash] of Object.entries<string>(data.ipfsHashByEpoch)) {
+      const { data } = (await this.client.gateways.public.get(epochHash)) as any
+
+      if (isEpoch(data)) {
+        metadata.ipfsHashByEpoch[epochNum] = epochHash
+        continue
+      }
+
+      const epoch = {
+        number: data.number,
+        startTimestamp: data.startTimestamp,
+        endTimestamp: data.endTimestamp,
+        startBlock: data.startBlock,
+        endBlock: data.endBlock,
+        treasuryAddress: data.treasuryAddress,
+        totalRevenue: data.totalRevenue,
+        burnRate: data.burnRate,
+        ...(data.runePriceUsd && {
+          runePriceUsd: data.runePriceUsd,
+        }),
+        distributionStatus: data.distributionStatus,
+        detailsByStakingContract: {
+          [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: {
+            totalRewardUnits: data.totalRewardUnits,
+            distributionRate: data.distributionRate,
+            ...(data.assetPriceUsd && {
+              assetPriceUsd: data.assetPriceUsd,
+            }),
+            distributionsByStakingAddress: data.distributionsByStakingAddress,
+          },
+        },
+      }
+
+      metadata.ipfsHashByEpoch[epochNum] = await this.addEpoch(epoch)
+    }
+
+    return metadata
+  }
+
+  async migrate_v2(data: RFOXMetadata): Promise<RFOXMetadata> {
+    const metadata: RFOXMetadata = { ...data, ipfsHashByEpoch: {} }
+
+    for (const [epochNum, epochHash] of Object.entries(data.ipfsHashByEpoch)) {
+      const { data } = (await this.client.gateways.public.get(epochHash)) as any
+
+      if (isEpoch(data)) {
+        metadata.ipfsHashByEpoch[epochNum] = epochHash
+        continue
+      }
+
+      const distributions = Object.values<{ txId: string }>(
+        data.detailsByStakingContract[ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX].distributionsByStakingAddress,
+      )
+
+      const txid = distributions[0].txId
+
+      if (!txid) {
+        metadata.ipfsHashByEpoch[epochNum] = epochHash
+        continue
+      }
+
+      const { data: tx } = await (async () => {
+        try {
+          return await axios.get<Tx>(`${UNCHAINED_URL}/api/v1/tx/${txid}`)
+        } catch {
+          return await axios.get<Tx>(`${UNCHAINED_V1_URL}/api/v1/tx/${txid}`)
+        }
+      })()
+
+      const epoch: Epoch = {
+        number: data.number,
+        startTimestamp: data.startTimestamp,
+        endTimestamp: data.endTimestamp,
+        distributionTimestamp: tx.timestamp * 1000,
+        startBlock: data.startBlock,
+        endBlock: data.endBlock,
+        treasuryAddress: data.treasuryAddress,
+        totalRevenue: data.totalRevenue,
+        ...(data.revenue && { revenue: data.revenue }),
+        burnRate: data.burnRate,
+        ...(data.runePriceUsd && { runePriceUsd: data.runePriceUsd }),
+        distributionStatus: data.distributionStatus,
+        detailsByStakingContract: data.detailsByStakingContract,
+      }
+
+      metadata.ipfsHashByEpoch[epochNum] = await this.addEpoch(epoch)
+    }
+
+    return metadata
+  }
+
   async migrate(): Promise<RFOXMetadata> {
     const metadataHash = await prompts.input({
       message: `What is the IPFS hash for the rFOX metadata you want to migrate? `,
     })
 
     try {
-      const { data } = (await this.client.gateways.public.get(metadataHash)) as any
+      const { data: metadata } = (await this.client.gateways.public.get(metadataHash)) as any
 
-      const metadata = ((): RFOXMetadata => {
-        if (isMetadata(data)) return data
+      if (!isMetadata(metadata)) {
+        console.log('invalid metadata', metadata)
+        if (!('distributionRateByStakingContract' in metadata)) return this.migrate_v1(metadata)
+      }
 
-        return {
-          epoch: data.epoch,
-          epochStartTimestamp: data.epochStartTimestamp,
-          epochEndTimestamp: data.epochEndTimestamp,
-          treasuryAddress: data.treasuryAddress,
-          burnRate: data.burnRate,
-          distributionRateByStakingContract: {
-            [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: data.distributionRate,
-          },
-          ipfsHashByEpoch: {},
+      for (const [_, epochHash] of Object.entries<string>(metadata.ipfsHashByEpoch).sort(
+        ([a], [b]) => Number(b) - Number(a),
+      )) {
+        const { data: epoch } = (await this.client.gateways.public.get(epochHash)) as any
+
+        if (!isEpoch(epoch)) {
+          if (!('distributionTimestamp' in metadata)) return this.migrate_v2(metadata)
         }
-      })()
-
-      for (const [epochNum, epochHash] of Object.entries(data.ipfsHashByEpoch)) {
-        const { data } = (await this.client.gateways.public.get(metadataHash)) as any
-
-        if (isEpoch(data)) {
-          metadata.ipfsHashByEpoch[epochNum] = epochHash as string
-          continue
-        }
-
-        const epoch: Epoch = {
-          number: data.number,
-          startTimestamp: data.startTimestamp,
-          endTimestamp: data.endTimestamp,
-          startBlock: data.startBlock,
-          endBlock: data.endBlock,
-          treasuryAddress: data.treasuryAddress,
-          totalRevenue: data.totalRevenue,
-          burnRate: data.burnRate,
-          ...(data.runePriceUsd && {
-            runePriceUsd: data.runePriceUsd,
-          }),
-          distributionStatus: data.distributionStatus,
-          detailsByStakingContract: {
-            [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: {
-              totalRewardUnits: data.totalRewardUnits,
-              distributionRate: data.distributionRate,
-              ...(data.assetPriceUsd && {
-                assetPriceUsd: data.assetPriceUsd,
-              }),
-              distributionsByStakingAddress: data.distributionsByStakingAddress,
-            },
-          },
-        }
-
-        metadata.ipfsHashByEpoch[epochNum] = await this.addEpoch(epoch)
       }
 
       return metadata
     } catch (err) {
       if (isAxiosError(err)) {
         error(
-          `Failed to get content of IPFS hash (${metadataHash}): ${err.request?.data || err.response?.data || err.message}, exiting.`,
+          `Failed to migrate IPFS hash (${metadataHash}): ${err.request?.data || err.response?.data || err.message}, exiting.`,
         )
       } else {
-        error(`Failed to get content of IPFS hash (${metadataHash}): ${err}, exiting.`)
+        error(`Failed to migrate IPFS hash (${metadataHash}): ${err}, exiting.`)
       }
 
       process.exit(1)

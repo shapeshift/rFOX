@@ -15,12 +15,6 @@ if (!INFURA_API_KEY) {
   process.exit(1)
 }
 
-const THORNODE_URL = process.env['THORNODE_URL']
-if (!THORNODE_URL) {
-  error('THORNODE_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
-  process.exit(1)
-}
-
 const UNCHAINED_URL = process.env['UNCHAINED_URL']
 if (!UNCHAINED_URL) {
   error('UNCHAINED_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
@@ -175,10 +169,10 @@ export class Client {
 
   async getPrice(): Promise<Price> {
     try {
-      const { data: ethPool } = await axios.get<Pool>(`${THORNODE_URL}/lcd/thorchain/pool/ETH.ETH`)
+      const { data: ethPool } = await axios.get<Pool>(`${UNCHAINED_URL}/lcd/thorchain/pool/ETH.ETH`)
 
       const { data: foxPool } = await axios.get<Pool>(
-        `${THORNODE_URL}/lcd/thorchain/pool/ETH.FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D`,
+        `${UNCHAINED_URL}/lcd/thorchain/pool/ETH.FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D`,
       )
 
       const ethPriceUsd = toPrecision(ethPool.asset_tor_price, THORCHAIN_PRECISION).toFixed(THORCHAIN_PRECISION)

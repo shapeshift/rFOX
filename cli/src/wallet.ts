@@ -11,9 +11,9 @@ import { error, info, success } from './logging'
 import { Epoch } from './types'
 import { RFOX_DIR } from '.'
 
-const THORNODE_URL = process.env['THORNODE_URL']
-if (!THORNODE_URL) {
-  error('THORNODE_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
+const UNCHAINED_URL = process.env['UNCHAINED_URL']
+if (!UNCHAINED_URL) {
+  error('UNCHAINED_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
   process.exit(1)
 }
 
@@ -131,7 +131,7 @@ export class Wallet {
     const isFunded = async (interval?: NodeJS.Timeout, spinner?: Ora, resolve?: () => void): Promise<boolean> => {
       try {
         const { data } = await axios.get<{ result: { total_count: string } }>(
-          `${THORNODE_URL}/rpc/tx_search?query="transfer.recipient='${address}' AND transfer.amount='${totalAmount}rune'"`,
+          `${UNCHAINED_URL}/rpc/tx_search?query="transfer.recipient='${address}' AND transfer.amount='${totalAmount}rune'"`,
         )
 
         if (data.result.total_count !== '1') {
@@ -201,7 +201,7 @@ export class Wallet {
       const account = await (async () => {
         try {
           const { data } = await axios.get<{ account: { account_number: string; sequence: string } }>(
-            `${THORNODE_URL}/lcd/cosmos/auth/v1beta1/accounts/${address}`,
+            `${UNCHAINED_URL}/lcd/cosmos/auth/v1beta1/accounts/${address}`,
           )
           return data.account
         } catch (err) {
@@ -308,7 +308,7 @@ export class Wallet {
         await new Promise(resolve => setTimeout(resolve, 1000))
 
         const { data } = await axios.post<{ result: { code: number; data: string; log: string; hash: string } }>(
-          `${THORNODE_URL}/rpc`,
+          `${UNCHAINED_URL}/rpc`,
           {
             jsonrpc: '2.0',
             id: stakingAddress,

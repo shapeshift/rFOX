@@ -130,9 +130,14 @@ export class Wallet {
 
     const isFunded = async (interval?: NodeJS.Timeout, spinner?: Ora, resolve?: () => void): Promise<boolean> => {
       try {
-        const { data } = await axios.get<{ result: { total_count: string } }>(
-          `${UNCHAINED_URL}/rpc/tx_search?query="transfer.recipient='${address}' AND transfer.amount='${totalAmount}rune'"`,
-        )
+        const { data } = await axios.post<{ result: { total_count: string } }>(`${UNCHAINED_URL}/rpc`, {
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tx_search',
+          params: {
+            query: `transfer.recipient='${address}' AND transfer.amount='${totalAmount}rune'`,
+          },
+        })
 
         if (data.result.total_count !== '1') {
           return false

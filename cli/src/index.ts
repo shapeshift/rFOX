@@ -44,21 +44,18 @@ const processEpoch = async () => {
 
   const revenue = await client.getRevenue(metadata.epochStartTimestamp, metadata.epochEndTimestamp)
 
-  info(`Affilate addresses:`)
-  revenue.addresses.forEach(address => info(`\t- ${address}`))
-
-  info(`Total revenue earned by denom:`)
-  Object.entries(revenue.revenue).forEach(([denom, amount]) => {
-    info(`\t- ${BigNumber(amount).div(100000000).toFixed(8)} ${denom}`)
+  info(`Total revenue earned by service:`)
+  Object.entries(revenue.byService).forEach(([service, amount]) => {
+    info(`\t- ${service}: $${amount}`)
   })
 
-  info(`Total revenue in RUNE: ${BigNumber(revenue.amount).div(100000000).toFixed(8)}`)
+  info(`Total revenue: $${revenue.totalUsd}`)
 
   const totalDistributionRate = Object.entries(metadata.distributionRateByStakingContract).reduce(
     (prev, [stakingContract, distributionRate]) => {
-      const totalDistribution = BigNumber(BigNumber(revenue.amount).times(distributionRate).toFixed(0))
+      const totalDistribution = revenue.totalUsd * distributionRate
       info(
-        `Staking Contract ${stakingContract}:\n\t- Share of total revenue to be distributed as rewards: ${distributionRate * 100}%\n\t- Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`,
+        `Staking Contract ${stakingContract}:\n\t- Share of total revenue to be distributed as rewards: ${distributionRate * 100}%\n\t- Total rewards to be distributed: $${totalDistribution}`,
       )
       return prev + distributionRate
     },
@@ -66,12 +63,12 @@ const processEpoch = async () => {
   )
 
   info(`Share of total revenue to be distributed as rewards: ${totalDistributionRate * 100}%`)
-  const totalDistribution = BigNumber(BigNumber(revenue.amount).times(totalDistributionRate).toFixed(0))
-  info(`Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`)
+  const totalDistribution = revenue.totalUsd * totalDistributionRate
+  info(`Total rewards to be distributed: $${totalDistribution}`)
 
   info(`Share of total revenue to buy back fox and burn: ${metadata.burnRate * 100}%`)
-  const totalBurn = BigNumber(BigNumber(revenue.amount).times(metadata.burnRate).toFixed(0))
-  info(`Total amount to be used to buy back fox and burn: ${totalBurn.div(100000000).toFixed()} RUNE`)
+  const totalBurn = revenue.totalUsd * metadata.burnRate
+  info(`Total amount to be used to buy back fox and burn: $${totalBurn}`)
 
   const spinner = ora('Detecting epoch start and end blocks...').start()
 
@@ -94,7 +91,7 @@ const processEpoch = async () => {
 
   const secondsInEpoch = BigInt(Math.floor((metadata.epochEndTimestamp - metadata.epochStartTimestamp) / 1000))
 
-  const { assetPriceUsd, runePriceUsd } = await client.getPrice()
+  const { assetPriceUsd, rewardAssetPriceUsd } = await client.getPrice()
 
   const detailsByStakingContract: Record<string, EpochDetails> = {}
   for (const stakingContract of stakingContracts) {
@@ -106,7 +103,7 @@ const processEpoch = async () => {
       endBlock,
       secondsInEpoch,
       distributionRate,
-      totalRevenue: revenue.amount,
+      totalRevenue: String(Math.floor((revenue.totalUsd / Number(rewardAssetPriceUsd)) * 1e6)),
     })
 
     detailsByStakingContract[stakingContract] = {
@@ -124,11 +121,10 @@ const processEpoch = async () => {
     distributionTimestamp: metadata.epochEndTimestamp + 1,
     startBlock: Number(startBlock),
     endBlock: Number(endBlock),
-    treasuryAddress: metadata.treasuryAddress,
-    totalRevenue: revenue.amount,
-    revenue: revenue.revenue,
+    totalRevenue: String(revenue.totalUsd),
+    revenue: Object.fromEntries(Object.entries(revenue.byService).map(([k, v]) => [k, String(v)])),
     burnRate: metadata.burnRate,
-    runePriceUsd,
+    rewardAssetPriceUsd,
     distributionStatus: 'pending',
     detailsByStakingContract,
   })
@@ -252,9 +248,9 @@ const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet:
   await wallet.fund(epoch, epochHash)
   const processedEpoch = await wallet.distribute(epoch, epochHash)
 
-  const { assetPriceUsd, runePriceUsd } = await client.getPrice()
+  const { assetPriceUsd, rewardAssetPriceUsd } = await client.getPrice()
 
-  processedEpoch.runePriceUsd = runePriceUsd
+  processedEpoch.rewardAssetPriceUsd = rewardAssetPriceUsd
   processedEpoch.distributionStatus = 'complete'
   processedEpoch.distributionTimestamp = Date.now()
   stakingContracts.forEach(stakingContract => {

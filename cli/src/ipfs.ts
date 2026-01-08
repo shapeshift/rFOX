@@ -1,17 +1,15 @@
 import * as prompts from '@inquirer/prompts'
-import { PinataSDK } from 'pinata'
 import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
+import { PinataSDK } from 'pinata'
+import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX } from './client'
+import { MONTHS, UNCHAINED_THORCHAIN_URL, UNCHAINED_THORCHAIN_V1_URL } from './constants'
 import { error, info } from './logging'
 import { Epoch, EpochDetails, RFOXMetadata, RewardDistribution } from './types'
-import { MONTHS } from './constants'
-import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX } from './client'
 
 const PINATA_JWT = process.env['PINATA_JWT']
 const PINATA_GATEWAY_URL = process.env['PINATA_GATEWAY_URL']
 const PINATA_GATEWAY_API_KEY = process.env['PINATA_GATEWAY_API_KEY']
-const UNCHAINED_URL = process.env['UNCHAINED_URL']
-const UNCHAINED_V1_URL = process.env['UNCHAINED_V1_URL']
 
 if (!PINATA_JWT) {
   error('PINATA_JWT not set. Please make sure you copied the sample.env and filled out your .env file.')
@@ -25,16 +23,6 @@ if (!PINATA_GATEWAY_URL) {
 
 if (!PINATA_GATEWAY_API_KEY) {
   error('PINATA_GATEWAY_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
-  process.exit(1)
-}
-
-if (!UNCHAINED_URL) {
-  error('UNCHAINED_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
-  process.exit(1)
-}
-
-if (!UNCHAINED_V1_URL) {
-  error('UNCHAINED_V1_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
   process.exit(1)
 }
 
@@ -448,9 +436,9 @@ export class IPFS {
 
       const { data: tx } = await (async () => {
         try {
-          return await axios.get<Tx>(`${UNCHAINED_URL}/api/v1/tx/${txid}`)
+          return await axios.get<Tx>(`${UNCHAINED_THORCHAIN_URL}/api/v1/tx/${txid}`)
         } catch {
-          return await axios.get<Tx>(`${UNCHAINED_V1_URL}/api/v1/tx/${txid}`)
+          return await axios.get<Tx>(`${UNCHAINED_THORCHAIN_V1_URL}/api/v1/tx/${txid}`)
         }
       })()
 

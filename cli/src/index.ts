@@ -1,18 +1,15 @@
 import 'dotenv/config'
 import * as prompts from '@inquirer/prompts'
-import BigNumber from 'bignumber.js'
 import fs from 'node:fs'
 import os from 'node:os'
-import path from 'node:path'
 import ora from 'ora'
 import { Client, stakingContracts } from './client'
 import { MONTHS } from './constants'
 import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
-import { create, recoverKeystore } from './mnemonic'
+import { SafeWallet } from './safeWallet'
 import { Epoch, EpochDetails, RFOXMetadata } from './types'
-import { Wallet } from './wallet'
 import { Command } from 'commander'
 
 const program = new Command()
@@ -163,45 +160,15 @@ const run = async () => {
       message: 'It looks like you have already started a distribution for this epoch. Do you want to continue? ',
     })
 
-    if (confirmed) return recover(metadata)
+    if (!confirmed) {
+      info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
+      warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
 
-    info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
-    warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
-
-    process.exit(0)
+      process.exit(0)
+    }
   }
 
-  const mnemonic = await create(epoch.number)
-
-  const confirmed = await prompts.confirm({
-    message: 'Have you securely backed up your mnemonic? ',
-  })
-
-  if (!confirmed) {
-    error('Unable to proceed knowing you have not securely backed up your mnemonic, exiting.')
-    process.exit(1)
-  }
-
-  const wallet = await Wallet.new(mnemonic)
-
-  await processDistribution(metadata, epoch, wallet, ipfs)
-}
-
-const recover = async (metadata?: RFOXMetadata) => {
-  const ipfs = await IPFS.new()
-
-  if (!metadata) {
-    metadata = await ipfs.getMetadata('process')
-  }
-
-  const epoch = await ipfs.getEpochFromMetadata(metadata)
-
-  const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch.number}.txt`)
-  const mnemonic = await recoverKeystore(keystoreFile)
-
-  const wallet = await Wallet.new(mnemonic)
-
-  await processDistribution(metadata, epoch, wallet, ipfs)
+  await processDistribution(metadata, epoch, ipfs)
 }
 
 const update = async () => {
@@ -240,13 +207,11 @@ const migrate = async () => {
   )
 }
 
-const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
+const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, ipfs: IPFS) => {
   const client = await Client.new()
+  const safeWallet = await SafeWallet.new()
 
-  const epochHash = metadata.ipfsHashByEpoch[epoch.number]
-
-  await wallet.fund(epoch, epochHash)
-  const processedEpoch = await wallet.distribute(epoch, epochHash)
+  const processedEpoch = await safeWallet.distribute(epoch)
 
   const { assetPriceUsd, rewardAssetPriceUsd } = await client.getPrice()
 
@@ -288,7 +253,7 @@ const main = async () => {
     }
   }
 
-  const choice = await prompts.select<'process' | 'run' | 'recover' | 'update' | 'migrate'>({
+  const choice = await prompts.select<'process' | 'run' | 'update' | 'migrate'>({
     message: 'What do you want to do?',
     choices: [
       {
@@ -300,11 +265,6 @@ const main = async () => {
         name: 'Run rFOX distribution',
         value: 'run',
         description: 'Start here to run an rFOX rewards distribution.',
-      },
-      {
-        name: 'Recover rFOX distribution',
-        value: 'recover',
-        description: 'Start here to recover an rFOX rewards distribution.',
       },
       {
         name: 'Update rFOX metadata',
@@ -324,8 +284,6 @@ const main = async () => {
       return processEpoch()
     case 'run':
       return run()
-    case 'recover':
-      return recover()
     case 'update':
       return update()
     case 'migrate':

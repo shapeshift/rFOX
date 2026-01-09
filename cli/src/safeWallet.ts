@@ -2,34 +2,36 @@ import SafeApiKit from '@safe-global/api-kit'
 import Safe from '@safe-global/protocol-kit'
 import type { MetaTransactionData, SafeTransaction } from '@safe-global/types-kit'
 import { OperationType } from '@safe-global/types-kit'
+import { SignClient } from '@walletconnect/sign-client'
 import BigNumber from 'bignumber.js'
 import chalk from 'chalk'
 import path from 'node:path'
 import ora, { type Ora } from 'ora'
-import { concat, encodeAbiParameters, encodeFunctionData, erc20Abi, parseAbi, size } from 'viem'
-import type { Hex } from 'viem'
+import pino from 'pino'
+import { encodeFunctionData, erc20Abi } from 'viem'
 import { arbitrum } from 'viem/chains'
-import {
-  ARBITRUM_MULTISEND_ADDRESS,
-  ARBITRUM_SAFE_ADDRESS,
-  ARBITRUM_USDC_ADDRESS,
-  UNCHAINED_ARBITRUM_URL,
-} from './constants'
+import { ARBITRUM_CHAIN_ID, ARBITRUM_SAFE_ADDRESS, ARBITRUM_USDC_ADDRESS, UNCHAINED_ARBITRUM_URL } from './constants'
 import { read, write } from './file'
 import { RFOX_DIR } from './index'
-import { error, info, warn } from './logging'
+import { error, info } from './logging'
 import type { Epoch, RewardDistribution } from './types'
 
 const SAFE_API_KEY = process.env['SAFE_API_KEY']
+const WALLETCONNECT_PROJECT_ID = process.env['WALLETCONNECT_PROJECT_ID']
 
 if (!SAFE_API_KEY) {
   error('SAFE_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
   process.exit(1)
 }
 
+if (!WALLETCONNECT_PROJECT_ID) {
+  error('WALLETCONNECT_PROJECT_ID not set. Please make sure you copied the sample.env and filled out your .env file.')
+  process.exit(1)
+}
+
 type SafeTransactionState = {
-  safeTxHash: string
-  executionTxHash: string
+  safeTxId: string
+  executionTxId: string
 }
 
 export class SafeWallet {
@@ -56,7 +58,7 @@ export class SafeWallet {
   }
 
   async distribute(epoch: Epoch): Promise<Epoch> {
-    const spinner = ora('Processing distribution...').start()
+    const spinner = ora()
 
     try {
       const distributions = Object.values(epoch.detailsByStakingContract)
@@ -72,34 +74,36 @@ export class SafeWallet {
         state = JSON.parse(stateData)
       } else {
         const safeTransaction = await this.createSafeTransaction(distributions, spinner)
-        const safeTxHash = await this.proposeTransaction(safeTransaction, spinner)
+        const safeTxId = await this.sendTransaction(safeTransaction, spinner)
 
         state = {
-          safeTxHash,
-          executionTxHash: '',
+          safeTxId,
+          executionTxId: '',
         }
 
         write(stateFile, JSON.stringify(state, null, 2))
       }
 
-      const safeUILink = `https://app.safe.global/transactions/tx?safe=arb1:${ARBITRUM_SAFE_ADDRESS}&id=multisig_${ARBITRUM_SAFE_ADDRESS}_${state.safeTxHash}`
+      const safeUILink = `https://app.safe.global/transactions/tx?safe=arb1:${ARBITRUM_SAFE_ADDRESS}&id=multisig_${ARBITRUM_SAFE_ADDRESS}_${state.safeTxId}`
       info(`View in Safe UI: ${chalk.blue(safeUILink)}`)
 
-      const executionTxHash = await this.pollForExecution(state.safeTxHash, spinner)
-      state.executionTxHash = executionTxHash
+      spinner.start('Polling for execution...')
+
+      const executionTxId = await this.pollForExecution(state.safeTxId, spinner)
+      state.executionTxId = executionTxId
 
       write(stateFile, JSON.stringify(state, null, 2))
 
       for (const [stakingContract, details] of Object.entries(epoch.detailsByStakingContract)) {
         for (const stakingAddress of Object.keys(details.distributionsByStakingAddress)) {
           epoch.detailsByStakingContract[stakingContract].distributionsByStakingAddress[stakingAddress].txId =
-            executionTxHash
+            executionTxId
         }
       }
 
-      spinner.succeed(`Distribution complete`)
+      spinner.succeed('Distribution complete')
 
-      info(`View Transaction: ${chalk.blue(`https://arbiscan.io/tx/${executionTxHash}`)}`)
+      info(`View Transaction: ${chalk.blue(`https://arbiscan.io/tx/${executionTxId}`)}`)
 
       return epoch
     } catch (err) {
@@ -110,7 +114,7 @@ export class SafeWallet {
 
   private async createSafeTransaction(distributions: RewardDistribution[], spinner: Ora): Promise<SafeTransaction> {
     try {
-      spinner.text = 'Creating safe transaction...'
+      spinner.start('Creating safe transaction...')
 
       const transactions = distributions
         .filter(distribution => BigNumber(distribution.amount).gt(0))
@@ -127,35 +131,9 @@ export class SafeWallet {
           }),
         )
 
-      const encodedTransactions = transactions.map(tx => {
-        return encodeAbiParameters(
-          [
-            { type: 'uint8', name: 'operation' },
-            { type: 'address', name: 'to' },
-            { type: 'uint256', name: 'value' },
-            { type: 'uint256', name: 'dataLength' },
-            { type: 'bytes', name: 'data' },
-          ],
-          [tx.operation!, tx.to, BigInt(tx.value), BigInt(size(tx.data as Hex)), tx.data! as Hex],
-        )
-      })
+      const safeTransaction = await this.safe.createTransaction({ transactions })
 
-      const safeTransaction = await this.safe.createTransaction({
-        transactions: [
-          {
-            to: ARBITRUM_MULTISEND_ADDRESS,
-            value: '0',
-            data: encodeFunctionData({
-              abi: parseAbi(['function multiSend(bytes transactions)']),
-              functionName: 'multiSend',
-              args: [concat(encodedTransactions)],
-            }),
-            operation: OperationType.DelegateCall,
-          },
-        ],
-      })
-
-      spinner.text = 'Safe transaction created'
+      spinner.succeed('Safe transaction created')
 
       return safeTransaction
     } catch (err) {
@@ -164,36 +142,76 @@ export class SafeWallet {
     }
   }
 
-  private async proposeTransaction(safeTransaction: SafeTransaction, spinner: Ora): Promise<string> {
-    try {
-      spinner.text = 'Proposing Safe transaction...'
+  private async sendTransaction(safeTransaction: SafeTransaction, spinner: Ora): Promise<string> {
+    spinner.start('Connecting with WalletConnect...')
 
-      const safeTxHash = await this.safe.getTransactionHash(safeTransaction)
-      const senderAddress = (await this.safe.getOwners())[0]
+    const client = await SignClient.init({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      logger: pino({ level: 'error' }),
+      metadata: {
+        name: 'rFOX CLI',
+        description: 'rFOX Reward Distribution',
+        url: 'https://github.com/shapeshift/rFOX',
+        icons: ['https://app.safe.global/favicon.ico'],
+      },
+    })
 
-      await this.api.proposeTransaction({
-        safeAddress: ARBITRUM_SAFE_ADDRESS,
-        safeTransactionData: safeTransaction.data,
-        safeTxHash,
-        senderAddress,
-        senderSignature: '0x',
-      })
+    const { uri, approval } = await client.connect({
+      optionalNamespaces: {
+        eip155: {
+          methods: ['eth_sendTransaction'],
+          chains: [ARBITRUM_CHAIN_ID],
+          events: ['accountsChanged', 'chainChanged'],
+        },
+      },
+    })
 
-      return safeTxHash
-    } catch (err) {
-      spinner?.fail(`Failed to propose Safe transaction: ${err}`)
+    if (!uri) {
+      spinner.fail('Failed to create WalletConnect URI')
       process.exit(1)
     }
+
+    spinner.info(chalk.dim.white(`Connect your wallet: ${chalk.blue(uri)}`))
+    spinner.start('Waiting for wallet connection...')
+
+    const session = await approval()
+
+    spinner.succeed('Connected to WalletConnect')
+
+    const connectedAddress = session.namespaces.eip155.accounts[0]?.split(':')[2]
+
+    spinner.start('Sending transaction to Safe...')
+
+    const txId = await client.request({
+      chainId: ARBITRUM_CHAIN_ID,
+      topic: session.topic,
+      request: {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: connectedAddress,
+            to: safeTransaction.data.to,
+            data: safeTransaction.data.data,
+            value: safeTransaction.data.value,
+            operation: safeTransaction.data.operation,
+          },
+        ],
+      },
+    })
+
+    spinner.succeed('Transaction sent to Safe')
+
+    return txId as string
   }
 
-  private async pollForExecution(safeTxHash: string, spinner: Ora): Promise<string> {
+  private async pollForExecution(safeTxId: string, spinner: Ora): Promise<string> {
     while (true) {
       try {
-        const tx = await this.api.getTransaction(safeTxHash)
+        const tx = await this.api.getTransaction(safeTxId)
         if (tx.transactionHash) return tx.transactionHash
-        spinner.text = `Waiting for execution... (${tx.confirmations?.length ?? 0}/${tx.confirmationsRequired} confirmations)`
+        spinner.text = `Waiting for transaction execution... (${tx.confirmations?.length ?? 0}/${tx.confirmationsRequired} confirmations)`
       } catch (err) {
-        warn(`Error polling transaction status: ${err}`)
+        spinner.warn(`Error polling transaction status: ${err}`)
       }
 
       await new Promise(resolve => setTimeout(resolve, 15_000))

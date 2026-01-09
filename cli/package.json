@@ -15,12 +15,8 @@
   "dependencies": {
     "@inquirer/core": "^8.2.2",
     "@inquirer/prompts": "^5.0.5",
-    "@safe-global/api-kit": "^4.0.1",
-    "@safe-global/protocol-kit": "^6.1.2",
-    "@safe-global/types-kit": "^3.0.0",
     "@shapeshiftoss/hdwallet-core": "^1.55.1",
     "@shapeshiftoss/hdwallet-native": "^1.55.1",
-    "@walletconnect/sign-client": "^2.23.1",
     "axios": "^1.7.2",
     "bignumber.js": "^9.1.2",
     "bip39": "^3.1.0",
@@ -31,7 +27,6 @@
     "log-symbols": "^6.0.0",
     "ora": "^8.0.1",
     "pinata": "^2.3.0",
-    "pino": "^10.1.0",
     "viem": "^2.17.3"
   },
   "devDependencies": {

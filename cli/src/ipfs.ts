@@ -1,17 +1,15 @@
 import * as prompts from '@inquirer/prompts'
-import { PinataSDK } from 'pinata'
 import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
+import { PinataSDK } from 'pinata'
+import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX } from './client'
+import { MONTHS, UNCHAINED_THORCHAIN_URL, UNCHAINED_THORCHAIN_V1_URL } from './constants'
 import { error, info } from './logging'
 import { Epoch, EpochDetails, RFOXMetadata, RewardDistribution } from './types'
-import { MONTHS } from './constants'
-import { ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX } from './client'
 
 const PINATA_JWT = process.env['PINATA_JWT']
 const PINATA_GATEWAY_URL = process.env['PINATA_GATEWAY_URL']
 const PINATA_GATEWAY_API_KEY = process.env['PINATA_GATEWAY_API_KEY']
-const UNCHAINED_URL = process.env['UNCHAINED_URL']
-const UNCHAINED_V1_URL = process.env['UNCHAINED_V1_URL']
 
 if (!PINATA_JWT) {
   error('PINATA_JWT not set. Please make sure you copied the sample.env and filled out your .env file.')
@@ -28,16 +26,6 @@ if (!PINATA_GATEWAY_API_KEY) {
   process.exit(1)
 }
 
-if (!UNCHAINED_URL) {
-  error('UNCHAINED_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
-  process.exit(1)
-}
-
-if (!UNCHAINED_V1_URL) {
-  error('UNCHAINED_V1_URL not set. Please make sure you copied the sample.env and filled out your .env file.')
-  process.exit(1)
-}
-
 type Tx = {
   timestamp: number
 }
@@ -49,8 +37,6 @@ const isMetadata = (obj: any): obj is RFOXMetadata => {
     typeof obj.epoch === 'number' &&
     typeof obj.epochStartTimestamp === 'number' &&
     typeof obj.epochEndTimestamp === 'number' &&
-    typeof obj.treasuryAddress === 'string' &&
-    Boolean(obj.treasuryAddress) &&
     typeof obj.burnRate === 'number' &&
     obj.distributionRateByStakingContract !== null &&
     typeof obj.distributionRateByStakingContract === 'object' &&
@@ -71,11 +57,14 @@ const isEpoch = (obj: any): obj is Epoch => {
     typeof obj.distributionTimestamp === 'number' &&
     typeof obj.startBlock === 'number' &&
     typeof obj.endBlock === 'number' &&
-    typeof obj.treasuryAddress === 'string' &&
-    Boolean(obj.treasuryAddress) &&
     typeof obj.totalRevenue === 'string' &&
     Boolean(obj.totalRevenue) &&
+    obj.revenue !== null &&
+    typeof obj.revenue === 'object' &&
+    Object.values(obj.revenue).every(value => typeof value === 'string') &&
     typeof obj.burnRate === 'number' &&
+    typeof obj.rewardAssetPriceUsd === 'string' &&
+    Boolean(obj.rewardAssetPriceUsd) &&
     (obj.distributionStatus === 'pending' || obj.distributionStatus === 'complete') &&
     obj.detailsByStakingContract !== null &&
     typeof obj.detailsByStakingContract === 'object' &&
@@ -89,6 +78,8 @@ export function isEpochDetails(obj: any): obj is EpochDetails {
     typeof obj === 'object' &&
     typeof obj.totalRewardUnits === 'string' &&
     typeof obj.distributionRate === 'number' &&
+    typeof obj.assetPriceUsd === 'string' &&
+    Boolean(obj.assetPriceUsd) &&
     obj.distributionsByStakingAddress !== null &&
     typeof obj.distributionsByStakingAddress === 'object' &&
     Object.values(obj.distributionsByStakingAddress).every(isRewardDistribution)
@@ -101,6 +92,7 @@ const isRewardDistribution = (obj: any): obj is RewardDistribution => {
     typeof obj === 'object' &&
     typeof obj.amount === 'string' &&
     typeof obj.rewardUnits === 'string' &&
+    typeof obj.totalRewardUnits === 'string' &&
     typeof obj.txId === 'string' &&
     typeof obj.rewardAddress === 'string'
   )
@@ -166,11 +158,11 @@ export class IPFS {
           return prev.plus(distribution.amount)
         }, BigNumber(0))
 
-        const totalRewards = totalDistributionAmount.div(100000000).toFixed()
+        const totalRewards = totalDistributionAmount.div(1000000).toFixed()
         const totalAddresses = distributions.length
 
         info(
-          `${month} rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} RUNE\n    - Total Addresses: ${totalAddresses}`,
+          `${month} rFOX reward distribution for Epoch #${data.number}:\n    - Total Rewards: ${totalRewards} USDC\n    - Total Addresses: ${totalAddresses}`,
         )
 
         return data
@@ -216,25 +208,18 @@ export class IPFS {
       }
     }
 
-    const choice = await prompts.select<'distributionRate' | 'burnRate' | 'treasuryAddress' | 'skip'>({
+    const choice = await prompts.select<'distributionRate' | 'burnRate' | 'skip'>({
       message: 'What do you want to update?',
       choices: [
         {
           name: 'Distribution Rate',
           value: 'distributionRate',
-          description:
-            'Update the current percentage of revenue (RUNE) earned by the treasury to be distributed as rewards.',
+          description: 'Update the current percentage of revenue to be distributed as rewards.',
         },
         {
           name: 'Burn Rate',
           value: 'burnRate',
-          description:
-            'Update the current percentage of revenue (RUNE) earned by the treasury to be used to buy FOX and then burn it.',
-        },
-        {
-          name: 'Treasury Address',
-          value: 'treasuryAddress',
-          description: 'Update the THORChain treasury address used to determine revenue earned by the DAO.',
+          description: 'Update the current percentage of revenue to be used to buy FOX and then burn it.',
         },
         { name: 'Skip', value: 'skip' },
       ],
@@ -281,20 +266,6 @@ export class IPFS {
 
         break
       }
-      case 'treasuryAddress': {
-        const treasuryAddress = await prompts.input({
-          message: `The treasury address is currently set to ${metadata.treasuryAddress}, what do you want to update it to? `,
-        })
-
-        if (!/^thor[a-z0-9]{39}$/.test(treasuryAddress)) {
-          error(`Invalid treasury address, please check your address and try again.`)
-          return this.updateMetadata(metadata)
-        }
-
-        metadata.treasuryAddress = treasuryAddress
-
-        break
-      }
       case 'skip':
         break
       default:
@@ -324,7 +295,7 @@ export class IPFS {
       }
 
       info(
-        `The new metadata values will be:\n    - Distribtution Rates: ${JSON.stringify(metadata.distributionRateByStakingContract)}\n    - Burn Rate: ${metadata.burnRate}\n    - Treasury Address: ${metadata.treasuryAddress}`,
+        `The new metadata values will be:\n    - Distribtution Rates: ${JSON.stringify(metadata.distributionRateByStakingContract)}\n    - Burn Rate: ${metadata.burnRate}`,
       )
 
       const confirmed = await prompts.confirm({
@@ -465,9 +436,9 @@ export class IPFS {
 
       const { data: tx } = await (async () => {
         try {
-          return await axios.get<Tx>(`${UNCHAINED_URL}/api/v1/tx/${txid}`)
+          return await axios.get<Tx>(`${UNCHAINED_THORCHAIN_URL}/api/v1/tx/${txid}`)
         } catch {
-          return await axios.get<Tx>(`${UNCHAINED_V1_URL}/api/v1/tx/${txid}`)
+          return await axios.get<Tx>(`${UNCHAINED_THORCHAIN_V1_URL}/api/v1/tx/${txid}`)
         }
       })()
 

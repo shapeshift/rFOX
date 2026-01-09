@@ -1,18 +1,15 @@
 import 'dotenv/config'
 import * as prompts from '@inquirer/prompts'
-import BigNumber from 'bignumber.js'
 import fs from 'node:fs'
 import os from 'node:os'
-import path from 'node:path'
 import ora from 'ora'
 import { Client, stakingContracts } from './client'
 import { MONTHS } from './constants'
 import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
-import { create, recoverKeystore } from './mnemonic'
+import { SafeWallet } from './safeWallet'
 import { Epoch, EpochDetails, RFOXMetadata } from './types'
-import { Wallet } from './wallet'
 import { Command } from 'commander'
 
 const program = new Command()
@@ -44,21 +41,18 @@ const processEpoch = async () => {
 
   const revenue = await client.getRevenue(metadata.epochStartTimestamp, metadata.epochEndTimestamp)
 
-  info(`Affilate addresses:`)
-  revenue.addresses.forEach(address => info(`\t- ${address}`))
-
-  info(`Total revenue earned by denom:`)
-  Object.entries(revenue.revenue).forEach(([denom, amount]) => {
-    info(`\t- ${BigNumber(amount).div(100000000).toFixed(8)} ${denom}`)
+  info(`Total revenue earned by service:`)
+  Object.entries(revenue.byService).forEach(([service, amount]) => {
+    info(`\t- ${service}: $${amount}`)
   })
 
-  info(`Total revenue in RUNE: ${BigNumber(revenue.amount).div(100000000).toFixed(8)}`)
+  info(`Total revenue: $${revenue.totalUsd}`)
 
   const totalDistributionRate = Object.entries(metadata.distributionRateByStakingContract).reduce(
     (prev, [stakingContract, distributionRate]) => {
-      const totalDistribution = BigNumber(BigNumber(revenue.amount).times(distributionRate).toFixed(0))
+      const totalDistribution = revenue.totalUsd * distributionRate
       info(
-        `Staking Contract ${stakingContract}:\n\t- Share of total revenue to be distributed as rewards: ${distributionRate * 100}%\n\t- Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`,
+        `Staking Contract ${stakingContract}:\n\t- Share of total revenue to be distributed as rewards: ${distributionRate * 100}%\n\t- Total rewards to be distributed: $${totalDistribution}`,
       )
       return prev + distributionRate
     },
@@ -66,12 +60,12 @@ const processEpoch = async () => {
   )
 
   info(`Share of total revenue to be distributed as rewards: ${totalDistributionRate * 100}%`)
-  const totalDistribution = BigNumber(BigNumber(revenue.amount).times(totalDistributionRate).toFixed(0))
-  info(`Total rewards to be distributed: ${totalDistribution.div(100000000).toFixed()} RUNE`)
+  const totalDistribution = revenue.totalUsd * totalDistributionRate
+  info(`Total rewards to be distributed: $${totalDistribution}`)
 
   info(`Share of total revenue to buy back fox and burn: ${metadata.burnRate * 100}%`)
-  const totalBurn = BigNumber(BigNumber(revenue.amount).times(metadata.burnRate).toFixed(0))
-  info(`Total amount to be used to buy back fox and burn: ${totalBurn.div(100000000).toFixed()} RUNE`)
+  const totalBurn = revenue.totalUsd * metadata.burnRate
+  info(`Total amount to be used to buy back fox and burn: $${totalBurn}`)
 
   const spinner = ora('Detecting epoch start and end blocks...').start()
 
@@ -94,7 +88,7 @@ const processEpoch = async () => {
 
   const secondsInEpoch = BigInt(Math.floor((metadata.epochEndTimestamp - metadata.epochStartTimestamp) / 1000))
 
-  const { assetPriceUsd, runePriceUsd } = await client.getPrice()
+  const { assetPriceUsd, rewardAssetPriceUsd } = await client.getPrice()
 
   const detailsByStakingContract: Record<string, EpochDetails> = {}
   for (const stakingContract of stakingContracts) {
@@ -106,7 +100,7 @@ const processEpoch = async () => {
       endBlock,
       secondsInEpoch,
       distributionRate,
-      totalRevenue: revenue.amount,
+      totalRevenue: String(Math.floor((revenue.totalUsd / Number(rewardAssetPriceUsd)) * 1e6)),
     })
 
     detailsByStakingContract[stakingContract] = {
@@ -124,11 +118,10 @@ const processEpoch = async () => {
     distributionTimestamp: metadata.epochEndTimestamp + 1,
     startBlock: Number(startBlock),
     endBlock: Number(endBlock),
-    treasuryAddress: metadata.treasuryAddress,
-    totalRevenue: revenue.amount,
-    revenue: revenue.revenue,
+    totalRevenue: String(revenue.totalUsd),
+    revenue: Object.fromEntries(Object.entries(revenue.byService).map(([k, v]) => [k, String(v)])),
     burnRate: metadata.burnRate,
-    runePriceUsd,
+    rewardAssetPriceUsd,
     distributionStatus: 'pending',
     detailsByStakingContract,
   })
@@ -167,45 +160,15 @@ const run = async () => {
       message: 'It looks like you have already started a distribution for this epoch. Do you want to continue? ',
     })
 
-    if (confirmed) return recover(metadata)
+    if (!confirmed) {
+      info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
+      warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
 
-    info(`Please move or delete all existing files for epoch-${epoch.number} from ${RFOX_DIR} before re-running.`)
-    warn('This action should never be taken unless you are absolutely sure you know what you are doing!!!')
-
-    process.exit(0)
+      process.exit(0)
+    }
   }
 
-  const mnemonic = await create(epoch.number)
-
-  const confirmed = await prompts.confirm({
-    message: 'Have you securely backed up your mnemonic? ',
-  })
-
-  if (!confirmed) {
-    error('Unable to proceed knowing you have not securely backed up your mnemonic, exiting.')
-    process.exit(1)
-  }
-
-  const wallet = await Wallet.new(mnemonic)
-
-  await processDistribution(metadata, epoch, wallet, ipfs)
-}
-
-const recover = async (metadata?: RFOXMetadata) => {
-  const ipfs = await IPFS.new()
-
-  if (!metadata) {
-    metadata = await ipfs.getMetadata('process')
-  }
-
-  const epoch = await ipfs.getEpochFromMetadata(metadata)
-
-  const keystoreFile = path.join(RFOX_DIR, `keystore_epoch-${epoch.number}.txt`)
-  const mnemonic = await recoverKeystore(keystoreFile)
-
-  const wallet = await Wallet.new(mnemonic)
-
-  await processDistribution(metadata, epoch, wallet, ipfs)
+  await processDistribution(metadata, epoch, ipfs)
 }
 
 const update = async () => {
@@ -244,17 +207,15 @@ const migrate = async () => {
   )
 }
 
-const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, wallet: Wallet, ipfs: IPFS) => {
+const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, ipfs: IPFS) => {
   const client = await Client.new()
+  const safeWallet = await SafeWallet.new()
 
-  const epochHash = metadata.ipfsHashByEpoch[epoch.number]
+  const processedEpoch = await safeWallet.distribute(epoch)
 
-  await wallet.fund(epoch, epochHash)
-  const processedEpoch = await wallet.distribute(epoch, epochHash)
+  const { assetPriceUsd, rewardAssetPriceUsd } = await client.getPrice()
 
-  const { assetPriceUsd, runePriceUsd } = await client.getPrice()
-
-  processedEpoch.runePriceUsd = runePriceUsd
+  processedEpoch.rewardAssetPriceUsd = rewardAssetPriceUsd
   processedEpoch.distributionStatus = 'complete'
   processedEpoch.distributionTimestamp = Date.now()
   stakingContracts.forEach(stakingContract => {
@@ -292,7 +253,7 @@ const main = async () => {
     }
   }
 
-  const choice = await prompts.select<'process' | 'run' | 'recover' | 'update' | 'migrate'>({
+  const choice = await prompts.select<'process' | 'run' | 'update' | 'migrate'>({
     message: 'What do you want to do?',
     choices: [
       {
@@ -304,11 +265,6 @@ const main = async () => {
         name: 'Run rFOX distribution',
         value: 'run',
         description: 'Start here to run an rFOX rewards distribution.',
-      },
-      {
-        name: 'Recover rFOX distribution',
-        value: 'recover',
-        description: 'Start here to recover an rFOX rewards distribution.',
       },
       {
         name: 'Update rFOX metadata',
@@ -328,8 +284,6 @@ const main = async () => {
       return processEpoch()
     case 'run':
       return run()
-    case 'recover':
-      return recover()
     case 'update':
       return update()
     case 'migrate':

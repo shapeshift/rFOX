@@ -137,15 +137,12 @@ export class Client {
 
   async getRevenue(startTimestamp: number, endTimestamp: number): Promise<Revenue> {
     try {
-      const { data } = await axios.get<Revenue>(
-        'https://revenue-dashboard-production.up.railway.app/api/v1/affiliate/revenue',
-        {
-          params: {
-            startDate: new Date(startTimestamp).toISOString().split('T')[0],
-            endDate: new Date(endTimestamp).toISOString().split('T')[0],
-          },
+      const { data } = await axios.get<Revenue>('https://revenue.shapeshift.com/api/v1/affiliate/revenue', {
+        params: {
+          startDate: new Date(startTimestamp).toISOString().split('T')[0],
+          endDate: new Date(endTimestamp).toISOString().split('T')[0],
         },
-      )
+      })
       return data
     } catch (err) {
       if (isAxiosError(err)) {

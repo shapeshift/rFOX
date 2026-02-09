@@ -208,19 +208,12 @@ const migrate = async () => {
 }
 
 const processDistribution = async (metadata: RFOXMetadata, epoch: Epoch, ipfs: IPFS) => {
-  const client = await Client.new()
   const safeWallet = await SafeWallet.new()
 
   const processedEpoch = await safeWallet.distribute(epoch)
 
-  const { assetPriceUsd, rewardAssetPriceUsd } = await client.getPrice()
-
-  processedEpoch.rewardAssetPriceUsd = rewardAssetPriceUsd
   processedEpoch.distributionStatus = 'complete'
   processedEpoch.distributionTimestamp = Date.now()
-  stakingContracts.forEach(stakingContract => {
-    processedEpoch.detailsByStakingContract[stakingContract].assetPriceUsd = assetPriceUsd[stakingContract]
-  })
 
   const processedEpochHash = await ipfs.addEpoch(processedEpoch)
 

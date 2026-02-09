@@ -16,17 +16,10 @@ if (!INFURA_API_KEY) {
 }
 
 const AVERAGE_BLOCK_TIME_BLOCKS = 1000
-const THORCHAIN_PRECISION = 8
-const TOKEN_PRECISION = 18
-const UNIV2_ETH_FOX_LP_TOKEN: Address = '0x5F6Ce0Ca13B87BD738519545d3E018e70E339c24'
 
 export const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX: Address = '0xaC2a4fD70BCD8Bab0662960455c363735f0e2b56'
-export const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_UNIV2_ETH_FOX: Address = '0x83B51B7605d2E277E03A7D6451B1efc0e5253A2F'
 
-export const stakingContracts = [
-  ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX,
-  ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_UNIV2_ETH_FOX,
-]
+export const stakingContracts = [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]
 
 type Revenue = {
   totalUsd: number
@@ -45,10 +38,6 @@ type ClosingState = {
 }
 
 type ClosingStateByStakingAddress = Record<string, ClosingState>
-
-const toPrecision = (value: string | number | bigint, precision: number) => {
-  return new BigNumber(value.toString()).div(new BigNumber(10).pow(precision))
-}
 
 export class Client {
   private rpc: PublicClient
@@ -166,42 +155,17 @@ export class Client {
       } = await axios.get<{ 'usd-coin': { usd: number } }>(url, { params: { vs_currencies: 'usd', ids: 'usd-coin' } })
 
       const {
-        data: { ethereum },
-      } = await axios.get<{ ethereum: { usd: number } }>(url, { params: { vs_currencies: 'usd', ids: 'ethereum' } })
-
-      const {
         data: { 'shapeshift-fox-token': fox },
       } = await axios.get<{ 'shapeshift-fox-token': { usd: number } }>(url, {
         params: { vs_currencies: 'usd', ids: 'shapeshift-fox-token' },
       })
 
-      const address = UNIV2_ETH_FOX_LP_TOKEN
-      const abi = parseAbi([
-        'function getReserves() view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast)',
-        'function totalSupply() view returns (uint256 totalSupply)',
-      ])
-
-      const reserves = await this.rpc.readContract({ address, abi, functionName: 'getReserves' })
-      const totalSupplyBaseUnit = await this.rpc.readContract({ address, abi, functionName: 'totalSupply' })
-
-      // reserve0 is for token0 (WETH): https://arbiscan.io/address/0x5F6Ce0Ca13B87BD738519545d3E018e70E339c24#readContract#F15
-      // reserve1 is for token1 (FOX): https://arbiscan.io/address/0x5F6Ce0Ca13B87BD738519545d3E018e70E339c24#readContract#F16
-      const [reserve0, reserve1] = reserves.map(reserveBaseUnit => toPrecision(reserveBaseUnit, TOKEN_PRECISION))
-      const totalSupply = toPrecision(totalSupplyBaseUnit, TOKEN_PRECISION)
-      const uniV2FoxEthPriceUsd = reserve0
-        .times(ethereum.usd)
-        .plus(reserve1.times(fox.usd))
-        .div(totalSupply)
-        .toFixed(THORCHAIN_PRECISION)
-
       info(`Current USDC price (USD): ${usdc.usd}`)
       info(`Current FOX price (USD): ${fox.usd}`)
-      info(`Current Uniswapv2 LP ETH/FOX price (USD): ${uniV2FoxEthPriceUsd}`)
 
       return {
         assetPriceUsd: {
           [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: String(fox.usd),
-          [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_UNIV2_ETH_FOX]: uniV2FoxEthPriceUsd,
         },
         rewardAssetPriceUsd: String(usdc.usd),
       }

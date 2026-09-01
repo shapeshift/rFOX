@@ -9,9 +9,9 @@ import { RFOX_REWARD_RATE } from './constants'
 import { error, info, warn } from './logging'
 import { CalculateRewardsArgs, RewardDistribution } from './types'
 
-const INFURA_API_KEY = process.env['INFURA_API_KEY']
-if (!INFURA_API_KEY) {
-  error('INFURA_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
+const ALCHEMY_API_KEY = process.env['ALCHEMY_API_KEY']
+if (!ALCHEMY_API_KEY) {
+  error('ALCHEMY_API_KEY not set. Please make sure you copied the sample.env and filled out your .env file.')
   process.exit(1)
 }
 
@@ -45,7 +45,7 @@ export class Client {
   constructor() {
     this.rpc = createPublicClient({
       chain: arbitrum,
-      transport: http(`https://arbitrum-mainnet.infura.io/v3/${INFURA_API_KEY}`),
+      transport: http(`https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
     })
   }
 

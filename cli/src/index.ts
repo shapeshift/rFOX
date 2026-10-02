@@ -4,7 +4,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import ora from 'ora'
 import { Client, stakingContracts } from './client'
-import { MONTHS } from './constants'
+import {
+  ETHEREUM_RFOX_BOOSTED_DISTRIBUTION_END_TIMESTAMP,
+  ETHEREUM_RFOX_BOOSTED_DISTRIBUTION_RATE,
+  ETHEREUM_RFOX_DISTRIBUTION_RATE,
+  ETHEREUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX,
+  MONTHS,
+} from './constants'
 import { isEpochDistributionStarted } from './file'
 import { IPFS } from './ipfs'
 import { error, info, success, warn } from './logging'
@@ -31,6 +37,17 @@ const processEpoch = async () => {
   const month = MONTHS[new Date(metadata.epochStartTimestamp).getUTCMonth()]
 
   info(`Processing rFOX Epoch #${metadata.epoch} for ${month} distribution.`)
+
+  const unsupportedStakingContracts = Object.keys(metadata.distributionRateByStakingContract).filter(
+    stakingContract => !(stakingContracts as string[]).includes(stakingContract),
+  )
+
+  if (unsupportedStakingContracts.length) {
+    error(
+      `Staking contract(s) in metadata are not supported by the CLI: ${unsupportedStakingContracts.join(', ')}. Update the metadata or add support for them, exiting.`,
+    )
+    process.exit(1)
+  }
 
   const now = Date.now()
   if (metadata.epochEndTimestamp > now) {
@@ -128,12 +145,27 @@ const processEpoch = async () => {
 
   const nextEpochStartDate = new Date(metadata.epochEndTimestamp + 1)
 
+  const distributionRateByStakingContract = { ...metadata.distributionRateByStakingContract }
+
+  // Revert to the base distribution rate once the boosted epochs are complete
+  if (
+    nextEpochStartDate.getTime() === ETHEREUM_RFOX_BOOSTED_DISTRIBUTION_END_TIMESTAMP &&
+    distributionRateByStakingContract[ETHEREUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX] ===
+      ETHEREUM_RFOX_BOOSTED_DISTRIBUTION_RATE
+  ) {
+    distributionRateByStakingContract[ETHEREUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX] = ETHEREUM_RFOX_DISTRIBUTION_RATE
+    warn(
+      `Boosted distribution rate has ended, reverting staking contract ${ETHEREUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX} distribution rate from ${ETHEREUM_RFOX_BOOSTED_DISTRIBUTION_RATE * 100}% to ${ETHEREUM_RFOX_DISTRIBUTION_RATE * 100}% for rFOX Epoch #${metadata.epoch + 1}.`,
+    )
+  }
+
   const hash = await ipfs.updateMetadata(Object.assign({}, metadata), {
     epoch: { number: metadata.epoch, hash: epochHash },
     metadata: {
       epoch: metadata.epoch + 1,
       epochStartTimestamp: nextEpochStartDate.getTime(),
       epochEndTimestamp: Date.UTC(nextEpochStartDate.getUTCFullYear(), nextEpochStartDate.getUTCMonth() + 1) - 1,
+      distributionRateByStakingContract,
     },
   })
 
@@ -267,7 +299,7 @@ const main = async () => {
       {
         name: 'Migrate rFOX metadata',
         value: 'migrate',
-        description: 'Start here to migrate an existing rFOX metadata to the new format.',
+        description: 'Migrate an existing rFOX metadata.',
       },
     ],
   })

@@ -3,9 +3,13 @@ import axios, { isAxiosError } from 'axios'
 import BigNumber from 'bignumber.js'
 import ora, { Ora } from 'ora'
 import { Address, PublicClient, createPublicClient, getContract, http, parseAbi } from 'viem'
-import { arbitrum } from 'viem/chains'
+import { mainnet } from 'viem/chains'
 import { stakingV1Abi } from '../generated/abi'
-import { RFOX_REWARD_RATE } from './constants'
+import {
+  ETHEREUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX,
+  ETHEREUM_RFOX_PROXY_CONTRACT_DEPLOYMENT_BLOCK,
+  RFOX_REWARD_RATE,
+} from './constants'
 import { error, info, warn } from './logging'
 import { CalculateRewardsArgs, RewardDistribution } from './types'
 
@@ -15,11 +19,7 @@ if (!ALCHEMY_API_KEY) {
   process.exit(1)
 }
 
-const AVERAGE_BLOCK_TIME_BLOCKS = 1000
-
-export const ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX: Address = '0xaC2a4fD70BCD8Bab0662960455c363735f0e2b56'
-
-export const stakingContracts = [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]
+export const stakingContracts = [ETHEREUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]
 
 type Revenue = {
   totalUsd: number
@@ -44,8 +44,8 @@ export class Client {
 
   constructor() {
     this.rpc = createPublicClient({
-      chain: arbitrum,
-      transport: http(`https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
+      chain: mainnet,
+      transport: http(`https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
     })
   }
 
@@ -55,62 +55,42 @@ export class Client {
 
   async getBlockByTimestamp(targetTimestamp: bigint, blockMode: 'earliest' | 'latest', spinner?: Ora): Promise<bigint> {
     try {
-      const latestBlock = await this.rpc.getBlock()
+      const finalizedBlock = await this.rpc.getBlock({ blockTag: 'finalized' })
 
-      if (targetTimestamp > latestBlock.timestamp) {
+      if (finalizedBlock.timestamp <= targetTimestamp) {
         spinner?.fail()
-        error(`Block does not exit for target timestamp: ${targetTimestamp.toString()}, exiting.`)
+        error(`Block is not finalized for target timestamp: ${targetTimestamp.toString()}, exiting.`)
         process.exit(1)
       }
 
-      const historicalBlock = await this.rpc.getBlock({
-        blockNumber: latestBlock.number - BigInt(AVERAGE_BLOCK_TIME_BLOCKS),
-      })
+      // Find the first block with a timestamp at or after the threshold (finalizedBlock always satisfies it)
+      const thresholdTimestamp = blockMode === 'earliest' ? targetTimestamp : targetTimestamp + 1n
 
-      const averageBlockTimeSeconds =
-        Number(latestBlock.timestamp - historicalBlock.timestamp) / AVERAGE_BLOCK_TIME_BLOCKS
+      let low = 0n
+      let high = finalizedBlock.number
+      while (low < high) {
+        const mid = (low + high) / 2n
+        const block = await this.rpc.getBlock({ blockNumber: mid })
 
-      const timeDifferenceSeconds = latestBlock.timestamp - targetTimestamp
-      const targetBlocksToMove = BigInt(Math.floor(Number(timeDifferenceSeconds) / averageBlockTimeSeconds))
-
-      let blockNumber = latestBlock.number - targetBlocksToMove
-      while (true) {
-        if (blockNumber <= 0n) return 0n
-        const block = await this.rpc.getBlock({ blockNumber })
-        const timeDifferenceSeconds = targetTimestamp - block.timestamp
-
-        // Block is within 1 block before the target timestamp
-        // Math.ceil is used for averageBlockTimeSeconds because if its sub second, we will never converge
-        // on a solution.
-        if (timeDifferenceSeconds >= 0n && timeDifferenceSeconds <= Math.ceil(averageBlockTimeSeconds)) break
-        const blocksToMove = BigInt(Math.ceil(Math.abs(Number(timeDifferenceSeconds)) / averageBlockTimeSeconds))
-
-        if (block.timestamp > targetTimestamp) {
-          blockNumber -= blocksToMove
+        if (block.timestamp >= thresholdTimestamp) {
+          high = mid
         } else {
-          blockNumber += blocksToMove
+          low = mid + 1n
         }
-        // sleep momentarily to avoid rate limiting
+
         await new Promise(resolve => setTimeout(resolve, 100))
       }
 
-      // In case of multiple batched blocks for a target timestamp, find the earliest or latest block based on blockMode
-      while (true) {
-        if (blockNumber <= 0n) return 0n
-        if (blockNumber >= latestBlock.number) return latestBlock.number
+      if (blockMode === 'earliest') return low
 
-        const nextBlockNumber = blockMode === 'earliest' ? blockNumber - 1n : blockNumber + 1n
-
-        const block = await this.rpc.getBlock({ blockNumber: nextBlockNumber })
-
-        if (block.timestamp !== targetTimestamp) break
-
-        blockNumber = nextBlockNumber
-        // sleep momentarily to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100))
+      if (low === 0n) {
+        spinner?.fail()
+        error(`Block does not exist for target timestamp: ${targetTimestamp.toString()}, exiting.`)
+        process.exit(1)
       }
 
-      return blockNumber
+      // The block before the first block after the target timestamp is the last block at or before it
+      return low - 1n
     } catch (err) {
       if (err instanceof Error) {
         const text = `Failed to get block for timestamp: ${targetTimestamp}: ${err.message}, exiting.`
@@ -165,7 +145,7 @@ export class Client {
 
       return {
         assetPriceUsd: {
-          [ARBITRUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: String(fox.usd),
+          [ETHEREUM_RFOX_PROXY_CONTRACT_ADDRESS_FOX]: String(fox.usd),
         },
         rewardAssetPriceUsd: String(usdc.usd),
       }
@@ -259,7 +239,7 @@ export class Client {
         address: stakingContract,
         abi: stakingV1Abi,
         eventName: 'Stake',
-        fromBlock: 'earliest',
+        fromBlock: ETHEREUM_RFOX_PROXY_CONTRACT_DEPLOYMENT_BLOCK,
         toBlock: endBlock,
       })
 

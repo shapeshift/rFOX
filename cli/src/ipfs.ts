@@ -216,9 +216,9 @@ export class IPFS {
           description: 'Update the current percentage of revenue to be distributed as rewards.',
         },
         {
-          name: 'Burn Rate',
+          name: 'Buyback Rate',
           value: 'burnRate',
-          description: 'Update the current percentage of revenue to be used to buy FOX and then burn it.',
+          description: 'Update the current percentage of revenue to be used to buy back FOX.',
         },
         { name: 'Skip', value: 'skip' },
       ],
@@ -252,12 +252,12 @@ export class IPFS {
       case 'burnRate': {
         const burnRate = parseFloat(
           await prompts.input({
-            message: `The burn rate is currently set to ${metadata.burnRate}, what do you want to update it to? `,
+            message: `The buyback rate is currently set to ${metadata.burnRate}, what do you want to update it to? `,
           }),
         )
 
         if (isNaN(burnRate) || burnRate < 0 || burnRate > 1) {
-          error(`Invalid burn rate, it must be a number between 0 and 1 (ex. 0.25).`)
+          error(`Invalid buyback rate, it must be a number between 0 and 1 (ex. 0.25).`)
           return this.updateMetadata(metadata)
         }
 
@@ -288,13 +288,13 @@ export class IPFS {
 
       if (totalDistributionRate + metadata.burnRate > 1) {
         error(
-          `Invalid rates, the sum of the distribution rate and burn rate must be a number between 0 and 1 (ex. 0.5).`,
+          `Invalid rates, the sum of the distribution rate and buyback rate must be a number between 0 and 1 (ex. 0.5).`,
         )
         return this.updateMetadata(metadata)
       }
 
       info(
-        `The new metadata values will be:\n    - Distribtution Rates: ${JSON.stringify(metadata.distributionRateByStakingContract)}\n    - Burn Rate: ${metadata.burnRate}`,
+        `The new metadata values will be:\n    - Distribution Rates: ${JSON.stringify(metadata.distributionRateByStakingContract)}\n    - Buyback Rate: ${metadata.burnRate}`,
       )
 
       const confirmed = await prompts.confirm({

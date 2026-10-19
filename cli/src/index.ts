@@ -80,9 +80,9 @@ const processEpoch = async () => {
   const totalDistribution = revenue.totalUsd * totalDistributionRate
   info(`Total rewards to be distributed: $${totalDistribution}`)
 
-  info(`Share of total revenue to buy back fox and burn: ${metadata.burnRate * 100}%`)
-  const totalBurn = revenue.totalUsd * metadata.burnRate
-  info(`Total amount to be used to buy back fox and burn: $${totalBurn}`)
+  info(`Share of total revenue to buy back fox: ${metadata.burnRate * 100}%`)
+  const totalBuyback = revenue.totalUsd * metadata.burnRate
+  info(`Total amount to be used to buy back fox: $${totalBuyback}`)
 
   const spinner = ora('Detecting epoch start and end blocks...').start()
 

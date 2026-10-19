@@ -6,7 +6,7 @@ import { Address } from 'viem'
  * @property {number} epoch - The current epoch number
  * @property {number} epochStartTimestamp - The start timestamp for the current epoch
  * @property {number} epochEndTimestamp - The end timestamp for the current epoch
- * @property {number} burnRate - The current percentage of revenue to be used to buy FOX from the open market and subsequently burned
+ * @property {number} burnRate - The current percentage of revenue to be used to buy back FOX from the open market for the treasury (named burnRate for backwards compatibility)
  * @property {number} distributionRateByStakingContract - The current percentage of revenue to be distributed as rewards for each staking contract
  * @property {Record<string, string>} ipfsHashByEpoch - The IPFS hashes for each epoch
  */
@@ -17,7 +17,7 @@ export type RFOXMetadata = {
   epochStartTimestamp: number
   /** The end timestamp for the current epoch */
   epochEndTimestamp: number
-  /** The current percentage of revenue to be used to buy FOX from the open market and subsequently burned */
+  /** The current percentage of revenue to be used to buy back FOX from the open market for the treasury (named burnRate for backwards compatibility) */
   burnRate: number
   /** The current percentage of revenue to be distributed as rewards for each staking contract */
   distributionRateByStakingContract: Record<string, number>
@@ -57,7 +57,7 @@ export type RewardDistribution = {
  * @property {number} endBlock - The end block for this epoch
  * @property {string} totalRevenue - The total revenue (USD) earned this epoch
  * @property {Record<string, string>} revenue - The revenue (USD) earned (by service) for this epoch
- * @property {number} burnRate - The percentage of revenue to be used to buy FOX from the open market and subsequently burned for this epoch
+ * @property {number} burnRate - The percentage of revenue to be used to buy back FOX from the open market for the treasury for this epoch (named burnRate for backwards compatibility)
  * @property {string} rewardAssetPriceUsd - The spot price of reward asset in USD
  * @property {'pending' | 'complete'} distributionStatus - The status of the reward distribution
  * @property {Record<string, EpochDetails>} detailsByStakingAddress - The details for each staking contract for this epoch
@@ -79,7 +79,7 @@ export type Epoch = {
   totalRevenue: string
   /** The revenue (USD) earned (by service) for this epoch */
   revenue: Record<string, string>
-  /** The percentage of revenue to be used to buy FOX from the open market and subsequently burned for this epoch */
+  /** The percentage of revenue to be used to buy back FOX from the open market for the treasury for this epoch (named burnRate for backwards compatibility) */
   burnRate: number
   /** The spot price of reward asset in USD */
   rewardAssetPriceUsd: string
